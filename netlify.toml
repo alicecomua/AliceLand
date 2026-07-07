@@ -1,5 +1,6 @@
 [build]
   publish = "."
+  functions = "netlify/functions"
 
 [[headers]]
   for = "/*"
@@ -8,6 +9,8 @@
     X-Content-Type-Options = "nosniff"
 
 [[headers]]
-  for = "/admin/*"
+  for = "/.netlify/functions/*"
   [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
