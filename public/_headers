@@ -1,0 +1,5 @@
+# Довге кешування для шрифтів і логотипа: повторні візити не витрачають трафік
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+/logo.jpg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800

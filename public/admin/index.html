@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#7b3fe4">
+<title>AliceLand · Адмінка</title>
+<link rel="icon" href="/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f2fa; --surface:#fff; --ink:#221433; --muted:#6c6082; --line:#e4daee;
+  --brand:#7b3fe4; --brand-dark:#5b21b6; --brand-soft:#efe6fd;
+  --coral:#e9705f; --night:#241640;
+  --ok:#16845b; --ok-soft:#e3f5ec; --warn:#8a5200; --warn-soft:#fff1d6; --bad:#b42318; --bad-soft:#fde8e6;
+  --r:16px; --r-s:12px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+[hidden]{display:none!important}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.muted{color:var(--muted)}
+h1,h2{margin:0}
+h2{font-size:22px;line-height:1.2;margin-bottom:14px}
+
+/* ---------- Вхід ---------- */
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login-card{width:100%;max-width:380px;background:var(--surface);border-radius:24px;padding:32px 26px;box-shadow:0 10px 40px rgba(60,20,110,.12);text-align:center}
+.login-logo{width:88px;height:88px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 14px;border:3px solid var(--brand-soft)}
+.login-card h1{font:800 28px/1.1 "Playfair Display",Georgia,serif}
+.login-card p{margin:4px 0 22px}
+.login-card .field{text-align:left}
+
+/* ---------- Каркас ---------- */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:var(--surface);border-bottom:1px solid var(--line)}
+.top-logo{width:38px;height:38px;border-radius:50%;object-fit:cover}
+.top-title{font:800 19px/1 "Playfair Display",Georgia,serif;flex:1}
+.top-title span{font:500 13px Inter,system-ui,sans-serif;color:var(--muted);margin-left:6px}
+.top-link{color:var(--brand-dark);font-weight:600;text-decoration:none;padding:8px 12px;border-radius:10px}
+.top-link:hover{background:var(--brand-soft)}
+.wrap{max-width:720px;margin:0 auto;padding:18px 16px 110px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.bar button{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:9px 2px 10px;color:var(--muted);font-size:13px;font-weight:600;min-height:56px;min-width:0}
+.bar button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.bar button[aria-current="page"]{color:var(--brand-dark)}
+.bar button[aria-current="page"] svg{stroke:var(--brand)}
+
+/* ---------- Поля ---------- */
+.card{background:var(--surface);border-radius:var(--r);padding:18px;box-shadow:0 1px 0 var(--line)}
+.field{display:block;margin-bottom:18px}
+.label{display:block;font-weight:600;margin-bottom:7px}
+.label small,.hint{font-weight:400;color:var(--muted);font-size:14px}
+.hint{margin:7px 0 0}
+input[type=text],input[type=password],input[type=search],input:not([type]),textarea{width:100%;min-height:48px;padding:11px 14px;background:#fff;border:1.5px solid var(--line);border-radius:var(--r-s);font-size:16px}
+textarea{resize:vertical;min-height:92px}
+input::placeholder,textarea::placeholder{color:#a396b8}
+input:focus,textarea:focus{border-color:var(--brand);outline:none;box-shadow:0 0 0 3px var(--brand-soft)}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.row2 .field{margin-bottom:18px}
+
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1 1 auto;min-height:46px;padding:9px 14px;border:1.5px solid var(--line);background:#fff;border-radius:var(--r-s);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{min-height:42px;padding:8px 14px;border:1.5px solid var(--line);background:#fff;border-radius:999px;font-weight:500}
+.chips button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-dark);font-weight:700}
+.chips.small{margin-top:8px;gap:6px}
+.chips.small button{min-height:36px;padding:4px 12px;font-size:14px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:12px 20px;border-radius:var(--r-s);border:1.5px solid var(--line);background:#fff;font-weight:700}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover:not(:disabled){background:var(--brand-dark);border-color:var(--brand-dark)}
+.btn.danger{color:var(--bad);border-color:#f1c2bd}
+.btn.block{display:flex;width:100%}
+.btn:disabled{opacity:.6;cursor:progress}
+.link{background:none;border:0;padding:4px 2px;color:var(--brand-dark);font-weight:600;text-decoration:underline}
+.err{margin:0 0 14px;padding:11px 14px;border-radius:var(--r-s);background:var(--bad-soft);color:var(--bad);font-weight:500}
+.banner{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;padding:11px 14px;border-radius:var(--r-s);background:var(--warn-soft);color:var(--warn)}
+
+/* ---------- Фото ---------- */
+.photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ph{position:relative;aspect-ratio:1;border-radius:var(--r-s);overflow:hidden;background:var(--brand-soft)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-main{position:absolute;left:6px;bottom:6px;padding:2px 8px;border-radius:999px;background:rgba(36,22,64,.82);color:#fff;font-size:12px;font-weight:600}
+.ph-star,.ph-del{position:absolute;top:6px;width:34px;height:34px;border-radius:50%;border:0;background:rgba(255,255,255,.92);font-size:18px;line-height:1;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.ph-del{right:6px;color:var(--bad);font-size:22px}
+.ph-star{left:6px;color:#b9770e}
+.ph.add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:2px dashed #c9b6ea;background:#fbf8ff;color:var(--brand-dark);font-weight:600}
+.ph.add span{font-size:30px;line-height:1}
+
+/* ---------- Каталог ---------- */
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.stat{padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:14px}
+.stat b{font-weight:700}
+.list{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-width:0;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);text-align:left}
+.row:hover{border-color:#cdbbec}
+.row-img{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--brand-soft);flex:none;display:grid;place-items:center;font-size:24px}
+.row-main{flex:1;min-width:0;display:block}
+.row-name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.row-meta{display:block;font-size:14px;color:var(--muted)}
+.pill{display:inline-block;margin-top:5px;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.s-available{background:var(--ok-soft);color:var(--ok)}
+.s-reserved{background:var(--warn-soft);color:var(--warn)}
+.s-sold{background:#ece7f3;color:#5f5575}
+.s-hidden{background:#eef0f4;color:#555d6b}
+.empty{padding:36px 12px;text-align:center;color:var(--muted)}
+
+/* ---------- Діалоги ---------- */
+dialog{border:0;padding:0;width:min(560px,100%);max-width:100%;max-height:90vh;margin:auto auto 0;border-radius:22px 22px 0 0;background:var(--surface);color:var(--ink);overflow:auto}
+dialog::backdrop{background:rgba(22,10,40,.55)}
+@media(min-width:640px){dialog{margin:auto;border-radius:22px}}
+.sheet{padding:20px 18px calc(18px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 4px;font-size:19px;line-height:1.25}
+.sheet .sub{margin:0 0 14px;color:var(--muted);font-size:14px}
+.sheet .btn{margin-top:8px}
+.sheet a.btn{text-decoration:none;color:inherit}
+
+.texts{background:var(--night);color:#f4eeff}
+.texts .sub{color:#c8b8e6}
+.texts .sheet h3{color:#fff}
+.tblock{margin:16px 0 0}
+.thead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;font-weight:600}
+.tblock textarea{background:#2f2052;border-color:#46347a;color:#f4eeff;min-height:120px;font-size:15px}
+.tblock textarea.short{min-height:56px}
+.tblock textarea:focus{border-color:#a98cf0;box-shadow:0 0 0 3px rgba(169,140,240,.3)}
+.copy{min-height:44px;padding:8px 18px;border-radius:999px;border:0;background:#fff;color:var(--night);font-weight:700}
+.copy.done{background:#9be3c0}
+.texts .btn{background:transparent;border-color:#5a4793;color:#fff}
+
+/* ---------- Сповіщення ---------- */
+#toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translate(-50%,20px);max-width:min(92vw,480px);padding:12px 18px;border-radius:14px;background:var(--night);color:#fff;font-weight:500;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.bad{background:var(--bad)}
+/* хештеги й імпорт */
+.sec-sub{font:700 18px/1.2 "Playfair Display",Georgia,serif;margin:22px 2px 10px}
+.tag-row{display:grid;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+.tag-row:first-child{border-top:0;padding-top:0}
+.tag-line{display:flex;gap:8px;align-items:center}
+.tag-line input.tl{flex:1;min-width:0}
+.tag-ops{display:flex;gap:6px;flex:none}
+.tag-ops button{width:42px;height:42px;border:1.5px solid var(--line);background:#fff;border-radius:10px;font-size:18px;line-height:1}
+.chk{display:flex;align-items:center;gap:10px;font-weight:600;min-height:40px}
+.chk input{width:22px;height:22px;accent-color:var(--brand)}
+.tag-add{display:flex;gap:8px;margin:14px 0}
+.tag-add input{flex:1;min-width:0}
+details.imp{margin-bottom:16px}
+details.imp>summary{cursor:pointer;font-weight:800;min-height:44px;display:flex;align-items:center;list-style:none}
+details.imp>summary::-webkit-details-marker{display:none}
+details.imp>summary::after{content:"+";margin-left:auto;font-size:24px;color:var(--brand)}
+details.imp[open]>summary::after{content:"–"}
+.imp-log{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px;font-size:14px;overflow-wrap:anywhere}
+.imp-log li.ok{color:var(--ok)}.imp-log li.bad{color:var(--bad)}.imp-log li.dup{color:var(--warn)}.imp-log li.wait{color:var(--muted)}
+.imp-log small{color:var(--muted)}
+.imp-fb{margin-top:16px;border-top:1px solid var(--line);padding-top:8px}
+.imp-fb summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+.bar button{position:relative}
+.badge{position:absolute;top:4px;left:calc(50% + 6px);min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font:700 12px/20px sans-serif;font-style:normal;text-align:center}
+.ord{list-style:none;background:#fff;border-radius:var(--r);padding:14px;box-shadow:0 0 0 1px var(--line);display:grid;gap:8px}
+.ord-new{box-shadow:0 0 0 2px var(--brand)}
+.ord-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.ord-top small{margin-left:auto;color:var(--muted)}
+.ord-item small{color:var(--muted);display:block}
+.ord-who a{font-weight:800;color:var(--brand-dark);text-decoration:none}
+.ord-note{padding:9px 12px;border-radius:12px;background:var(--surface-2,#f6f2fa);color:var(--ink)}
+.ord-act{display:flex;gap:8px;flex-wrap:wrap}.ord-act a.btn{text-decoration:none;color:var(--ink)}.ord-act .btn{min-height:44px;padding:8px 14px;font-size:15px}
+.serp{margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.serp b{display:block;color:#1a0dab;font:400 18px/1.3 Arial,sans-serif;overflow-wrap:anywhere}
+.serp i{display:block;color:#0d652d;font:400 13px/1.4 Arial,sans-serif;font-style:normal;overflow-wrap:anywhere}
+.serp span{display:block;color:#4d5156;font:400 14px/1.5 Arial,sans-serif;overflow-wrap:anywhere}
+.seg.small{margin-top:8px}
+.seg.small button{min-height:40px;padding:6px 12px;font-size:15px}
+.range{display:flex;align-items:center;gap:10px}
+.range select{flex:1;min-width:0;min-height:48px;padding:0 12px;background:#fff;border:1.5px solid var(--line);border-radius:var(--r-s);font-size:16px}
+.notice{margin:12px 16px 0;padding:12px 14px;border-radius:12px;background:#fff6dc;color:#6b4c00;font-size:15px}
+.sy-status{margin-top:14px;font-size:15px;overflow-wrap:anywhere}
+.sy-run{color:var(--brand-dark);font-weight:700}
+.sy-bad{color:var(--bad)}
+.sy-list{list-style:none;padding:0;margin:8px 0;display:grid;gap:6px}
+.bar button{font-size:11.5px}
+.l-short{display:none}
+@media(max-width:350px){.l-full{display:none}.l-short{display:inline}.bar button{font-size:11px}}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<noscript><p style="padding:24px">Для адмінки потрібен JavaScript.</p></noscript>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Вхід -->
+<main id="loginView" class="login" hidden>
+  <div class="login-card">
+    <img class="login-logo" src="/logo.jpg" alt="">
+    <h1>AliceLand</h1>
+    <p class="muted">Адмінка магазину</p>
+    <label class="field">
+      <span class="label">Пароль</span>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Введи пароль">
+    </label>
+    <p id="loginErr" class="err" role="alert" hidden></p>
+    <button id="loginBtn" class="btn primary block" type="button">Увійти</button>
+  </div>
+</main>
+
+<!-- Адмінка -->
+<div id="appView" hidden>
+  <header class="top">
+    <img class="top-logo" src="/logo.jpg" alt="">
+    <div class="top-title">AliceLand<span>адмінка</span></div>
+    <a class="top-link" href="/" target="_blank" rel="noopener">Сайт</a>
+  </header>
+
+  <div id="apiNotice" class="notice" role="alert" hidden>Сервер ще старої версії. Залий у GitHub оновлену папку <b>netlify</b> (файли api.mjs, seo.mjs, sync.mjs, sync-background.mjs і папку lib), інакше не працюватимуть хештеги, імпорт, автоперевірка Shafa, контакти та SEO.</div>
+  <main class="wrap">
+    <!-- Додати -->
+    <section id="tab-add" aria-labelledby="formTitle">
+      <h2 id="formTitle">Новий костюм</h2>
+      <div id="editBanner" class="banner" hidden>
+        <span>Редагуєш <b id="editArt"></b></span>
+        <button id="cancelEdit" class="link" type="button">Скасувати</button>
+      </div>
+      <details class="card imp" id="impBox">
+        <summary>Імпорт із Shafa</summary>
+        <p class="hint" style="margin-top:0">Встав посилання на свої товари на Shafa, по одному в рядок. Ми створимо чернетки з фото, розміром, станом і хештегами. Перевір їх у розділі «Каталог» і опублікуй.</p>
+        <label class="field" style="margin-top:12px">
+          <span class="label">Посилання</span>
+          <textarea id="impUrls" rows="4" placeholder="https://shafa.ua/uk/item/222163643-…"></textarea>
+        </label>
+        <button id="impGo" class="btn primary block" type="button">Імпортувати як чернетки</button>
+        <ul class="imp-log" id="impLog" aria-live="polite"></ul>
+        <p id="impDone" hidden style="margin:12px 0 0"><button id="impOpen" class="link" type="button">Відкрити чернетки</button></p>
+        <details class="imp-fb" id="impFallback">
+          <summary>Не виходить? Встав код сторінки</summary>
+          <p class="hint" style="margin-top:0">Якщо Shafa не віддає сторінку серверу: відкрий товар на Shafa з комп'ютера, натисни Ctrl+U, виділи все (Ctrl+A), скопіюй (Ctrl+C) і встав сюди. Один товар за раз.</p>
+          <textarea id="impHtml" rows="3" placeholder="Код сторінки"></textarea>
+          <button id="impHtmlGo" class="btn block" type="button" style="margin-top:10px">Розібрати код</button>
+        </details>
+      </details>
+      <div class="card">
+        <div class="field">
+          <span class="label">Фото <small id="photoCount"></small></span>
+          <div id="photoGrid" class="photos"></div>
+          <input id="photoInput" type="file" accept="image/*" multiple hidden>
+          <p class="hint">Перше фото буде головним на сайті. Фото стискаються самі.</p>
+        </div>
+
+        <div class="field">
+          <span class="label">Для кого</span>
+          <div class="seg" id="segAudience" role="group" aria-label="Для кого">
+            <button type="button" data-v="girls" aria-pressed="false">Дівчатка</button>
+            <button type="button" data-v="boys" aria-pressed="false">Хлопчики</button>
+            <button type="button" data-v="both" aria-pressed="false">Універсальний</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">Хештеги <small>за ними шукають на сайті</small></span>
+          <div class="chips" id="chipTags" role="group" aria-label="Хештеги"></div>
+        </div>
+
+        <label class="field">
+          <span class="label">Назва</span>
+          <input id="fName" maxlength="80" autocomplete="off" placeholder="Наприклад: Людина-Павук, комбінезон з маскою">
+        </label>
+
+        <div class="field">
+          <span class="label">Зріст, см</span>
+          <div class="range">
+            <select id="fFrom" aria-label="Зріст від"></select>
+            <span aria-hidden="true">–</span>
+            <select id="fTo" aria-label="Зріст до"></select>
+          </div>
+          <p class="hint">Один зріст: обери тільки «від». Діапазон: «від» і «до».</p>
+          <label class="label" for="fSize" style="margin-top:12px">Або інший розмір <small>S, M, One size…</small></label>
+          <input id="fSize" maxlength="40" autocomplete="off" placeholder="Наприклад: S або One size">
+        </div>
+
+        <div class="field">
+          <span class="label">Вік, років <small>необов'язково</small></span>
+          <div class="range">
+            <select id="fAgeFrom" aria-label="Вік від"></select>
+            <span aria-hidden="true">–</span>
+            <select id="fAgeTo" aria-label="Вік до"></select>
+          </div>
+          <p class="hint">Один вік: тільки «від». За ним покупці шукають на сайті (3–4, 5–6, 7–8…).</p>
+        </div>
+
+        <div class="field">
+          <span class="label">Довжина, см <small>необов'язково</small></span>
+          <input id="fLength" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="Наприклад: 62 або 55–60">
+          <div class="seg small" id="segLenKind" role="group" aria-label="Що саме виміряно">
+            <button type="button" data-v="tag" aria-pressed="true">від бірки до низу</button>
+            <button type="button" data-v="height" aria-pressed="false">висота</button>
+            <button type="button" data-v="length" aria-pressed="false">довжина</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">Стан</span>
+          <div class="seg" id="segCond" role="group" aria-label="Стан"></div>
+        </div>
+
+        <div class="row2">
+          <label class="field">
+            <span class="label">Ціна, грн</span>
+            <input id="fPrice" inputmode="numeric" autocomplete="off" placeholder="450">
+          </label>
+          <label class="field">
+            <span class="label">Стара ціна <small>якщо знижка</small></span>
+            <input id="fOld" inputmode="numeric" autocomplete="off" placeholder="560">
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="label">Опис <small>необов'язково</small></span>
+          <textarea id="fDesc" maxlength="800" placeholder="Що в комплекті, чи є дефекти, з якого мультфільму"></textarea>
+        </label>
+
+        <div class="field">
+          <span class="label">Де показувати</span>
+          <div class="seg" id="segStatus" role="group" aria-label="Де показувати">
+            <button type="button" data-v="available" aria-pressed="true">На сайті</button>
+            <button type="button" data-v="reserved" aria-pressed="false">Резерв</button>
+            <button type="button" data-v="hidden" aria-pressed="false">Чернетка</button>
+          </div>
+        </div>
+
+        <p id="formErr" class="err" role="alert" hidden></p>
+        <button id="btnSave" class="btn primary block" type="button">Опублікувати</button>
+      </div>
+    </section>
+
+    <!-- Каталог -->
+    <section id="tab-list" aria-labelledby="listTitle" hidden>
+      <h2 id="listTitle">Каталог</h2>
+      <div class="stats" id="stats"></div>
+      <label class="field" style="margin-bottom:10px">
+        <span class="label" style="position:absolute;left:-9999px">Пошук</span>
+        <input id="q" type="search" autocomplete="off" placeholder="Пошук за назвою або артикулом">
+      </label>
+      <div class="seg" id="segFilter" role="group" aria-label="Фільтр за статусом">
+        <button type="button" data-v="all" aria-pressed="true">Усі</button>
+        <button type="button" data-v="available" aria-pressed="false">На сайті</button>
+        <button type="button" data-v="reserved" aria-pressed="false">Резерв</button>
+        <button type="button" data-v="sold" aria-pressed="false">Продані</button>
+        <button type="button" data-v="hidden" aria-pressed="false">Чернетки</button>
+      </div>
+      <button id="bulkPub" class="btn primary block" type="button" hidden style="margin-top:12px"></button>
+      <ul class="list" id="list"></ul>
+      <p class="empty" id="listEmpty" hidden></p>
+    </section>
+
+    <!-- Замовлення -->
+    <section id="tab-orders" aria-labelledby="ordTitle" hidden>
+      <h2 id="ordTitle">Замовлення</h2>
+      <p class="hint" style="margin-top:0">Усі замовлення з сайту зберігаються тут, навіть якщо Telegram недоступний. Нові з'являються самі.</p>
+      <div class="seg" id="segOrd" role="group" aria-label="Фільтр замовлень">
+        <button type="button" data-v="new" aria-pressed="true">Нові</button>
+        <button type="button" data-v="work" aria-pressed="false">В роботі</button>
+        <button type="button" data-v="done" aria-pressed="false">Виконані</button>
+        <button type="button" data-v="all" aria-pressed="false">Усі</button>
+      </div>
+      <ul class="list" id="ordList" style="margin-top:12px"></ul>
+    </section>
+
+    <!-- Налаштування -->
+    <section id="tab-set" aria-labelledby="setTitle" hidden>
+      <h2 id="setTitle">Налаштування</h2>
+      <div class="card">
+        <label class="field">
+          <span class="label">Адреса сайту <small>для посилань у текстах</small></span>
+          <input id="setSite" autocomplete="off" inputmode="url">
+        </label>
+        <label class="field">
+          <span class="label">Підпис у тексті для Instagram</span>
+          <textarea id="setSign"></textarea>
+        </label>
+        <label class="field">
+          <span class="label">Постійні хештеги</span>
+          <textarea id="setTags"></textarea>
+          <p class="hint">Хештеги за категорією костюма додаються самі.</p>
+        </label>
+        <button id="btnBackup" class="btn block" type="button">Зберегти копію каталогу</button>
+        <p class="hint">Файл з усіма лотами (без фото). Зроби його раз на кілька тижнів.</p>
+      </div>
+      <h3 class="sec-sub">Контакти сайту</h3>
+      <div class="card" id="contactCard">
+        <p class="hint" style="margin-top:0">Змінюєш тут, і нове значення з'являється скрізь на сайті: у шапці, підвалі, кнопці «Подзвонити» та на сторінках товарів. Порожні поля на сайті не показуються.</p>
+        <label class="field"><span class="label">Телефон</span><input id="stPhone" inputmode="tel" autocomplete="off" placeholder="097 862 40 66"></label>
+        <label class="field"><span class="label">Другий телефон <small>необов'язково</small></span><input id="stPhone2" inputmode="tel" autocomplete="off"></label>
+        <label class="field"><span class="label">Viber <small>якщо номер інший, ніж телефон</small></span><input id="stViber" inputmode="tel" autocomplete="off"></label>
+        <label class="field"><span class="label">Telegram <small>@імʼя</small></span><input id="stTelegram" autocomplete="off" placeholder="@alice_shop"></label>
+        <label class="field"><span class="label">Instagram <small>@імʼя або посилання</small></span><input id="stInstagram" autocomplete="off" placeholder="@alice.land"></label>
+        <label class="field"><span class="label">Магазин на Shafa <small>посилання, порожнє = не показувати</small></span><input id="stShafa" inputmode="url" autocomplete="off"></label>
+        <label class="field"><span class="label">Місто</span><input id="stCity" autocomplete="off"></label>
+        <label class="field"><span class="label">Адреса <small>необов'язково</small></span><input id="stAddress" autocomplete="off"></label>
+        <label class="field"><span class="label">Години роботи <small>необов'язково</small></span><input id="stHours" autocomplete="off" placeholder="Щодня 10:00–20:00"></label>
+        <button id="stSave" class="btn primary block" type="button">Зберегти контакти</button>
+      </div>
+
+      <h3 class="sec-sub">SEO: пошук і соцмережі</h3>
+      <div class="card" id="seoCard">
+        <p class="hint" style="margin-top:0">Так сайт виглядає в Google і в прев'ю посилань (Viber, Telegram, Instagram). Для кожного костюма сторінка <b>/p/ALC-001</b>, заголовок, опис і ціна створюються самі.</p>
+        <label class="field"><span class="label">Назва сайту <small id="seoTitleN"></small></span><input id="seoTitle" maxlength="90" autocomplete="off"></label>
+        <label class="field"><span class="label">Опис сайту <small id="seoDescN"></small></span><textarea id="seoDesc" maxlength="300" rows="3"></textarea></label>
+        <div class="serp" id="seoPreview" aria-label="Як це виглядає в Google"></div>
+        <label class="field"><span class="label">Ключові фрази <small>через кому</small></span><input id="seoKeywords" autocomplete="off">
+          <span class="hint">Google не читає цей список, але ці слова корисно вживати в назвах і описах костюмів. Вони йдуть у мета-теги для інших систем.</span></label>
+        <label class="field"><span class="label">Адреса сайту <small>з https://</small></span><input id="seoUrl" inputmode="url" autocomplete="off" placeholder="https://aliceland.netlify.app">
+          <span class="hint">Основна адреса для Google. Якщо підключиш власний домен, впиши його тут.</span></label>
+        <label class="field"><span class="label">Google Search Console <small>код підтвердження</small></span><input id="seoGsc" autocomplete="off" placeholder="google-site-verification"></label>
+        <label class="field"><span class="label">Google Analytics <small>G-XXXXXXXXXX</small></span><input id="seoGa" autocomplete="off" placeholder="G-ABC1234567"></label>
+        <p class="hint">Карта сайту для Google: <b id="seoMapLink"></b>. Додай її в Search Console (Індексування, Файли Sitemap). Файл robots.txt створюється сам.</p>
+        <button id="seoSave" class="btn primary block" type="button">Зберегти SEO</button>
+      </div>
+
+      <h3 class="sec-sub">Мітки й піксели</h3>
+      <div class="card" id="trackCard">
+        <p class="hint" style="margin-top:0">Вставляй лише ідентифікатор, решту додамо самі. Мітки працюють на головній і на сторінках товарів. Події для реклами: перегляд костюма, початок замовлення, заявка.</p>
+        <label class="field"><span class="label">Google Tag Manager <small>GTM-XXXXXXX</small></span><input id="trGtm" autocomplete="off" placeholder="GTM-ABC1234">
+          <span class="hint">Найзручніше: через нього можна підключити що завгодно без мене. Якщо Google Analytics уже налаштовано в GTM, не вказуй його окремо в розділі SEO.</span></label>
+        <label class="field"><span class="label">Meta Pixel <small>Facebook та Instagram, лише цифри</small></span><input id="trFb" inputmode="numeric" autocomplete="off" placeholder="123456789012345"></label>
+        <label class="field"><span class="label">TikTok Pixel</span><input id="trTt" autocomplete="off" placeholder="C1ABCDEFGHIJ0123456789"></label>
+        <label class="field"><span class="label">Google Ads <small>AW-123456789</small></span><input id="trAds" autocomplete="off" placeholder="AW-123456789"></label>
+        <label class="field"><span class="label">Мітка конверсії Google Ads <small>для заявок</small></span><input id="trAdsLabel" autocomplete="off" placeholder="AbC_123-xyz"></label>
+        <label class="field"><span class="label">Microsoft Clarity <small>записи візитів і карти кліків</small></span><input id="trClarity" autocomplete="off" placeholder="abc123xyz9"></label>
+        <label class="field"><span class="label">Свій код у шапку сторінки <small>будь-який піксель чи мета-тег підтвердження</small></span><textarea id="trHead" rows="3" spellcheck="false" placeholder="<meta name=&quot;facebook-domain-verification&quot; content=&quot;…&quot;>"></textarea></label>
+        <label class="field"><span class="label">Свій код у кінець сторінки</span><textarea id="trBody" rows="3" spellcheck="false"></textarea>
+          <span class="hint">Код вставляється на сторінки як є. Вставляй лише те, чому довіряєш.</span></label>
+        <label class="chk"><input type="checkbox" id="trConsent"> Питати згоду на cookie перед завантаженням міток</label>
+        <label class="field"><span class="label">Текст повідомлення про cookie <small>необов'язково</small></span><input id="trConsentText" maxlength="220" autocomplete="off" placeholder="Ми використовуємо cookie для статистики й реклами."></label>
+        <button id="trSave" class="btn primary block" type="button">Зберегти мітки</button>
+        <p class="hint">Перевірити: розширення Meta Pixel Helper, Google Tag Assistant або Events Manager у Meta.</p>
+      </div>
+
+      <h3 class="sec-sub">Автоперевірка Shafa</h3>
+      <div class="card" id="syncCard">
+        <p class="hint" style="margin-top:0">Двічі на добу (приблизно о 7–8 ранку й 19–20 вечора) система заглядає в магазин на Shafa: перевіряє ціни, чи не продано товар, і шукає нові. Результат пише тут і в Telegram.</p>
+        <label class="chk"><input type="checkbox" id="syEnabled"> Перевіряти автоматично двічі на добу</label>
+        <label class="chk"><input type="checkbox" id="syApply"> Застосовувати зміни на сайті автоматично</label>
+        <p class="hint" style="margin:0 0 6px 32px">Поки вимкнено, система лише повідомляє, що змінилось. Увімкни, коли переконаєшся, що звіти правильні.</p>
+        <label class="chk"><input type="checkbox" id="syPrices"> Оновлювати ціни</label>
+        <label class="chk"><input type="checkbox" id="sySold"> Знімати проданих і видалених</label>
+        <label class="chk"><input type="checkbox" id="syNew"> Шукати нові товари</label>
+        <label class="field" style="margin-top:12px"><span class="label">Профіль на Shafa</span><input id="syUrl" autocomplete="off" inputmode="url"></label>
+        <button id="sySave" class="btn primary block" type="button">Зберегти</button>
+        <button id="syRun" class="btn block" type="button" style="margin-top:8px">Перевірити зараз</button>
+        <div id="syStatus" class="sy-status" aria-live="polite"></div>
+      </div>
+
+      <h3 class="sec-sub">Хештеги й колекції</h3>
+      <div class="card" id="tagCard">
+        <p class="hint" style="margin-top:0">Хештеги стають кнопками-фільтрами на сайті. «Окремий блок» показує такі костюми добіркою над каталогом, наприклад «Новорічні костюми» взимку.</p>
+        <div id="tagList" style="margin-top:12px"></div>
+        <div class="tag-add"><input id="tagNew" class="fi" maxlength="30" placeholder="Новий хештег, наприклад: великдень"><button id="tagAdd" class="btn" type="button">Додати</button></div>
+        <button id="tagSave" class="btn primary block" type="button">Зберегти хештеги</button>
+      </div>
+      <p class="muted" style="margin:16px 4px">Артикули видаються самі: ALC-001, ALC-002 і далі. Той самий артикул стоїть на сайті й у повідомленні про замовлення.</p>
+      <button id="btnLogout" class="btn block" type="button">Вийти</button>
+    </section>
+  </main>
+
+  <nav class="bar" aria-label="Розділи">
+    <button type="button" data-tab="add" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Додати
+    </button>
+    <button type="button" data-tab="list">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Каталог
+    </button>
+    <button type="button" data-tab="orders">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12zM6 6 5 3H2M9 20h.01M18 20h.01"/></svg>Замовлення<i id="ordBadge" class="badge" hidden>0</i>
+    </button>
+    <button type="button" data-tab="set">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="l-full">Налаштування</span><span class="l-short">Налашт.</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Дії з лотом -->
+<dialog id="dlgAct"><div class="sheet" id="actBody"></div></dialog>
+
+<!-- Готові тексти -->
+<dialog id="dlgTexts" class="texts"><div class="sheet" id="textsBody"></div></dialog>
+
+<script>
+(() => {
+'use strict';
+
+const KEY_STORE = 'al_admin_key';
+const SET_STORE = 'al_admin_settings';
+const MAX_PHOTOS = 10;
+const CONDS = ['Новий','Ідеальний','Дуже хороший','Хороший','Задовільний'];
+const STATUS_LABEL = { available:'На сайті', reserved:'Резерв', sold:'Продано', hidden:'Чернетка' };
+const AGE_OPTS = Array.from({ length: 16 }, (_, i) => i + 1);
+const SIZE_OPTS = [74,80,86,92,98,104,110,116,122,128,134,140,146,152,158,164,170,176];
+const TAG_HASHTAGS = {
+  halloween:'#хелловін #костюмнахелловін', heroes:'#супергерої #костюмсупергероя',
+  princess:'#принцеса #костюмпринцеси', fairy:'#фея #ангел #костюмфеї',
+  animals:'#тваринки #костюмтваринки', disney:'#disney #дісней', accessories:'#аксесуари #карнавальніаксесуари',
+  newyear:'#новорічнийкостюм #новорічнікостюми #новийрік'
+};
+const AUD_HASHTAGS = { girls:'#длядівчинки', boys:'#длясина' };
+const DEFAULTS = {
+  siteUrl: location.origin,
+  signature: '📍 Хмельницький\n📞 097 862 40 66',
+  hashtags: '#карнавальнийкостюм #дитячийкостюм #хмельницький #бу'
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+const S = {
+  key: '', items: [], counts: {}, nextId: '', lenKind: 'tag', orders: [], ordCounts: { new: 0, work: 0, done: 0, cancel: 0 }, ordFilter: 'new', ordLoaded: false, ordSeen: false, site: null, siteOrigin: '', siteDirty: false, tagCfg: [], tagDraft: [], tagDirty: false, importing: false, apiVersion: 0, sync: null, syncDirty: false, syncBusy: false,
+  photos: [], audience: '', tags: [], cond: 'Дуже хороший', status: 'available',
+  editId: null, filter: 'all', busy: false,
+  settings: loadSettings()
+};
+
+function loadSettings() {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SET_STORE) || '{}') }; }
+  catch { return { ...DEFAULTS }; }
+}
+function saveSettings() { localStorage.setItem(SET_STORE, JSON.stringify(S.settings)); }
+
+/* ---------- Мережа ---------- */
+async function api(method, path, body) {
+  const opt = { method, headers: { 'x-admin-key': encodeURIComponent(S.key) } };
+  if (body instanceof Blob) { opt.body = body; opt.headers['content-type'] = 'image/jpeg'; }
+  else if (body !== undefined) { opt.body = JSON.stringify(body); opt.headers['content-type'] = 'application/json'; }
+  let res;
+  try { res = await fetch(path, opt); }
+  catch { throw new Error('Немає зв\'язку з сайтом. Перевір інтернет і спробуй ще раз'); }
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { /* не JSON */ }
+  if (res.ok) return data;
+  const err = new Error(data?.error || `Помилка ${res.status}`);
+  err.code = data?.code || (res.status === 401 ? 'bad_password' : '');
+  err.status = res.status;
+  if (res.status === 404 && !data) err.message = 'Сервер каталогу не знайдено. Перевір, що папку netlify/functions залито на GitHub і деплой завершився';
+  throw err;
+}
+
+/* ---------- Сповіщення ---------- */
+let toastTimer;
+function toast(msg, bad = false, ms = 3200) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, ms);
+}
+
+/* ---------- Вхід ---------- */
+function showLogin(msg) {
+  $('appView').hidden = true;
+  $('loginView').hidden = false;
+  const e = $('loginErr');
+  e.hidden = !msg;
+  e.textContent = msg || '';
+}
+function showApp() {
+  $('loginView').hidden = true;
+  $('appView').hidden = false;
+  renderAll();
+}
+const FALLBACK_TAGS = [
+  { key: 'halloween', label: 'хелловін', title: 'Костюми на Хелловін', collection: false }, { key: 'newyear', label: 'новорічні', title: 'Новорічні костюми', collection: true },
+  { key: 'heroes', label: 'супергерої', title: '', collection: false }, { key: 'princess', label: 'принцеси', title: '', collection: false },
+  { key: 'fairy', label: 'феї й янголи', title: '', collection: false }, { key: 'animals', label: 'тварини', title: '', collection: false },
+  { key: 'disney', label: 'disney', title: '', collection: false }, { key: 'accessories', label: 'аксесуари', title: '', collection: false }
+];
+function applyList(d) {
+  S.apiVersion = d.apiVersion || 0;
+  $('apiNotice').hidden = S.apiVersion >= 7;
+  if (S.apiVersion >= 7 && !S.ordLoaded) refreshOrders();
+  if (Array.isArray(d.tags)) { S.tagCfg = d.tags; if (!S.tagDirty) S.tagDraft = JSON.parse(JSON.stringify(d.tags)); }
+  else if (!S.tagCfg.length) { S.tagCfg = FALLBACK_TAGS.map((t) => ({ ...t })); S.tagDraft = FALLBACK_TAGS.map((t) => ({ ...t })); }
+  S.items = d.items || [];
+  S.counts = d.counts || {};
+  S.nextId = d.nextId || '';
+}
+async function login(key, silent) {
+  S.key = key;
+  try {
+    applyList(await api('GET', '/api/admin/products'));
+    localStorage.setItem(KEY_STORE, key);
+    showApp();
+  } catch (e) {
+    S.key = '';
+    if (silent && e.code === 'bad_password') localStorage.removeItem(KEY_STORE);
+    showLogin(e.code === 'no_password'
+      ? 'У Netlify ще не задано пароль. Додай змінну ADMIN_PASSWORD (Project configuration → Environment variables) і зроби деплой'
+      : e.message);
+  }
+}
+function logout() {
+  localStorage.removeItem(KEY_STORE);
+  S.key = '';
+  $('pw').value = '';
+  showLogin();
+}
+
+/* ---------- Вкладки ---------- */
+function switchTab(name) {
+  for (const t of ['add','list','orders','set']) $('tab-' + t).hidden = t !== name;
+  document.querySelectorAll('.bar button').forEach((b) => {
+    if (b.dataset.tab === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  if (name === 'list') refreshList();
+  if (name === 'orders') { refreshOrders(); if (!S.items.length) refreshList(); }
+  if (name === 'set' && S.apiVersion >= 5) loadSync();
+  if (name === 'set' && S.apiVersion >= 6) loadSiteSettings();
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------- Фото ---------- */
+const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
+
+async function loadBitmap(file) {
+  if ('createImageBitmap' in window) {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { /* пробуємо через <img> */ }
+  }
+  return await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = () => { URL.revokeObjectURL(url); resolve(im); };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не вдалось прочитати фото')); };
+    im.src = url;
+  });
+}
+function toJpeg(src, maxSide, quality) {
+  const w0 = src.width || src.naturalWidth, h0 = src.height || src.naturalHeight;
+  const k = Math.min(1, maxSide / Math.max(w0, h0));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w0 * k));
+  c.height = Math.max(1, Math.round(h0 * k));
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(src, 0, 0, c.width, c.height);
+  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('Не вдалось стиснути фото'))), 'image/jpeg', quality));
+}
+async function processPhoto(file) {
+  const bmp = await loadBitmap(file);
+  const full = await toJpeg(bmp, 1280, 0.82);
+  const small = await toJpeg(bmp, 480, 0.8);
+  if (bmp.close) bmp.close();
+  return { id: newId(), remote: false, uploaded: false, full, small, url: URL.createObjectURL(small) };
+}
+async function addFiles(fileList) {
+  let files = Array.from(fileList).filter((f) => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
+  const room = MAX_PHOTOS - S.photos.length;
+  if (files.length > room) { toast(`Можна до ${MAX_PHOTOS} фото, зайві пропущено`, true); files = files.slice(0, room); }
+  if (!files.length) return;
+  setBusy(true, 'Стискаю фото…');
+  for (const f of files) {
+    try { S.photos.push(await processPhoto(f)); renderPhotos(); }
+    catch { toast(`Не вдалось прочитати файл ${f.name}`, true); }
+  }
+  setBusy(false);
+}
+function renderPhotos() {
+  let h = S.photos.map((p, i) =>
+    `<div class="ph"><img src="${esc(p.url)}" alt="Фото ${i + 1}">` +
+    (i === 0 ? '<span class="ph-main">Головне</span>'
+             : `<button type="button" class="ph-star" data-act="cover" data-i="${i}" aria-label="Зробити головним">★</button>`) +
+    `<button type="button" class="ph-del" data-act="del" data-i="${i}" aria-label="Прибрати фото">×</button></div>`
+  ).join('');
+  if (S.photos.length < MAX_PHOTOS) h += '<button type="button" class="ph add" data-act="add"><span>+</span>Фото</button>';
+  $('photoGrid').innerHTML = h;
+  $('photoCount').textContent = S.photos.length ? `(${S.photos.length} з ${MAX_PHOTOS})` : '';
+}
+
+/* ---------- Форма ---------- */
+function renderSeg(id, value) {
+  document.querySelectorAll(`#${id} button`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === value)));
+}
+function renderTags() {
+  $('chipTags').innerHTML = S.tagCfg.map((t) =>
+    `<button type="button" data-v="${esc(t.key)}" aria-pressed="${S.tags.includes(t.key)}">#${esc(t.label)}</button>`).join('')
+    || '<span class="hint">Хештегів ще немає. Додай їх у Налаштуваннях.</span>';
+}
+function renderStaticChips() {
+  $('segCond').innerHTML = CONDS.map((c) => `<button type="button" data-v="${esc(c)}" aria-pressed="false">${esc(c)}</button>`).join('');
+  const opts = SIZE_OPTS.map((n) => `<option value="${n}">${n}</option>`).join('');
+  $('fFrom').innerHTML = '<option value="">від</option>' + opts;
+  $('fTo').innerHTML = '<option value="">до</option>' + opts;
+  const ages = AGE_OPTS.map((n) => `<option value="${n}">${n}</option>`).join('');
+  $('fAgeFrom').innerHTML = '<option value="">від</option>' + ages;
+  $('fAgeTo').innerHTML = '<option value="">до</option>' + ages;
+}
+function sizeValue() {
+  const t = $('fSize').value.trim();
+  if (t) return t;
+  const a = Number($('fFrom').value), b = Number($('fTo').value);
+  if (!a && !b) return '';
+  const lo = Math.min(a || b, b || a), hi = Math.max(a || b, b || a);
+  return lo === hi ? `${lo} см` : `${lo}–${hi} см`;
+}
+function setSizeFields(size) {
+  $('fFrom').value = ''; $('fTo').value = ''; $('fSize').value = '';
+  const m = String(size || '').match(/^(\d{2,3})(?:\s*[–-]\s*(\d{2,3}))?\s*(?:см)?$/i);
+  if (m && SIZE_OPTS.includes(Number(m[1])) && (!m[2] || SIZE_OPTS.includes(Number(m[2])))) { $('fFrom').value = m[1]; $('fTo').value = m[2] || ''; }
+  else $('fSize').value = size || '';
+}
+function refreshSaveLabel() {
+  $('btnSave').textContent = S.editId ? 'Зберегти зміни' : (S.status === 'hidden' ? 'Зберегти чернетку' : 'Опублікувати');
+}
+function setBusy(on, text) {
+  S.busy = on;
+  const b = $('btnSave');
+  b.disabled = on;
+  if (on) b.textContent = text || 'Зачекай…'; else refreshSaveLabel();
+}
+function showFormErr(msg) {
+  const e = $('formErr');
+  e.textContent = msg;
+  e.hidden = false;
+  e.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+function resetForm() {
+  S.photos.forEach((p) => { if (!p.remote) URL.revokeObjectURL(p.url); });
+  S.photos = []; S.audience = ''; S.tags = []; S.cond = 'Дуже хороший'; S.status = 'available'; S.editId = null; S.lenKind = 'tag';
+  for (const id of ['fName','fSize','fPrice','fOld','fDesc','fFrom','fTo','fAgeFrom','fAgeTo','fLength']) $(id).value = '';
+  $('formErr').hidden = true;
+  $('editBanner').hidden = true;
+  $('formTitle').textContent = 'Новий костюм';
+  renderPhotos(); renderTags();
+  renderSeg('segAudience', ''); renderSeg('segCond', S.cond); renderSeg('segStatus', S.status); renderSeg('segLenKind', S.lenKind);
+  refreshSaveLabel();
+}
+function startEdit(item) {
+  resetForm();
+  S.editId = item.id;
+  S.photos = item.images.map((id) => ({ id, remote: true, uploaded: true, url: `/img/${id}s` }));
+  S.audience = item.audience.length > 1 ? 'both' : (item.audience[0] || '');
+  S.tags = [...item.tags];
+  S.cond = item.condition;
+  S.status = item.status;
+  $('fName').value = item.name;
+  setSizeFields(item.size);
+  $('fAgeFrom').value = item.ageFrom ?? ''; $('fAgeTo').value = item.ageTo != null && item.ageTo !== item.ageFrom ? item.ageTo : '';
+  $('fLength').value = String(item.length || '').replace(/\s*см$/, ''); S.lenKind = item.lengthKind || 'tag';
+  $('fPrice').value = item.price || '';
+  $('fOld').value = item.oldPrice || '';
+  $('fDesc').value = item.desc || '';
+  $('formTitle').textContent = 'Редагування';
+  $('editArt').textContent = `${item.id} · ${item.name}${item.status === 'sold' ? ' (продано)' : ''}`;
+  $('editBanner').hidden = false;
+  renderPhotos(); renderTags();
+  renderSeg('segAudience', S.audience); renderSeg('segCond', S.cond); renderSeg('segStatus', S.status); renderSeg('segLenKind', S.lenKind);
+  refreshSaveLabel();
+  switchTab('add');
+}
+function validate() {
+  if (!S.photos.length && (S.status === 'available' || S.status === 'reserved')) return 'Додай хоча б одне фото';
+  if (!S.audience) return 'Обери, для кого костюм';
+  if ($('fName').value.trim().length < 2) return 'Впиши назву костюма';
+  if (!sizeValue()) return 'Вкажи зріст або розмір';
+  const price = Number(String($('fPrice').value).replace(',', '.'));
+  if (!(price >= 1)) return 'Вкажи ціну в гривнях';
+  return '';
+}
+function payload() {
+  return {
+    name: $('fName').value, size: sizeValue(), condition: S.cond, desc: $('fDesc').value,
+    ageFrom: $('fAgeFrom').value || $('fAgeTo').value, ageTo: $('fAgeTo').value || $('fAgeFrom').value,
+    length: $('fLength').value.trim(), lengthKind: S.lenKind,
+    audience: S.audience === 'both' ? ['girls', 'boys'] : (S.audience ? [S.audience] : []),
+    tags: S.tags, price: $('fPrice').value, oldPrice: $('fOld').value, status: S.status,
+    images: S.photos.map((p) => p.id)
+  };
+}
+async function uploadPhotos() {
+  const todo = S.photos.filter((p) => !p.remote && !p.uploaded);
+  for (let i = 0; i < todo.length; i++) {
+    setBusy(true, `Завантажую фото ${i + 1} з ${todo.length}…`);
+    await putPhoto(todo[i]);
+  }
+}
+async function putPhoto(p) {
+  await api('PUT', `/api/admin/img/${p.id}s`, p.small);   // спершу мініатюра, потім повне фото
+  await api('PUT', `/api/admin/img/${p.id}`, p.full);
+  p.uploaded = true;
+}
+async function apiBlob(path) {
+  let res;
+  try { res = await fetch(path, { headers: { 'x-admin-key': encodeURIComponent(S.key) } }); }
+  catch { throw new Error('Немає зв\'язку з сайтом. Перевір інтернет'); }
+  if (!res.ok) {
+    let m = '';
+    try { m = (await res.json()).error; } catch { /* не JSON */ }
+    throw new Error(m || `Помилка ${res.status}`);
+  }
+  return await res.blob();
+}
+async function save() {
+  if (S.busy) return;
+  const problem = validate();
+  if (problem) { showFormErr(problem); return; }
+  $('formErr').hidden = true;
+  const editing = S.editId;
+  try {
+    await uploadPhotos();
+    setBusy(true, 'Зберігаю…');
+    const res = editing
+      ? await api('PATCH', `/api/admin/product/${editing}`, payload())
+      : await api('POST', '/api/admin/product', payload());
+    const item = res.item;
+    const i = S.items.findIndex((x) => x.id === item.id);
+    if (i >= 0) S.items[i] = item; else S.items.unshift(item);
+    resetForm();
+    if (editing) { toast('Збережено'); switchTab('list'); }
+    else showTexts(item, item.status === 'hidden' ? 'Збережено як чернетку' : 'Опубліковано');
+    refreshList(true);
+  } catch (e) {
+    if (e.code === 'bad_password') { logout(); return; }
+    showFormErr(e.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+/* ---------- Каталог ---------- */
+async function refreshList(quiet) {
+  try { applyList(await api('GET', '/api/admin/products')); renderList(); }
+  catch (e) { if (e.code === 'bad_password') logout(); else if (!quiet) toast(e.message, true); }
+}
+function renderList() {
+  const bp = $('bulkPub');
+  if (bp) {
+    const n = S.items.filter((p) => p.status === 'hidden').length;
+    bp.hidden = !(S.filter === 'hidden' && n > 0);
+    bp.textContent = `Опублікувати всі чернетки (${n})`;
+  }
+  const total = S.items.length;
+  const c = { available: 0, reserved: 0, sold: 0, hidden: 0 };
+  S.items.forEach((p) => { c[p.status] = (c[p.status] || 0) + 1; });
+  $('stats').innerHTML = total
+    ? `<span class="stat"><b>${c.available || 0}</b> на сайті</span><span class="stat"><b>${c.reserved || 0}</b> резерв</span><span class="stat"><b>${c.sold || 0}</b> продано</span><span class="stat"><b>${c.hidden || 0}</b> чернеток</span>`
+    : '';
+  const q = $('q').value.trim().toLowerCase();
+  const list = S.items.filter((p) =>
+    (S.filter === 'all' || p.status === S.filter) &&
+    (!q || `${p.name} ${p.id}`.toLowerCase().includes(q)));
+  $('list').innerHTML = list.map((p) => {
+    const img = p.images[0]
+      ? `<img class="row-img" src="/img/${p.images[0]}s" alt="" loading="lazy">`
+      : '<span class="row-img" aria-hidden="true">🎭</span>';
+    return `<li><button type="button" class="row" data-id="${esc(p.id)}">${img}` +
+      `<span class="row-main"><span class="row-name">${esc(p.name)}</span>` +
+      `<span class="row-meta">${esc(p.id)} · ${esc(p.size)} · ${p.price} грн</span>` +
+      `<span class="pill s-${p.status}">${STATUS_LABEL[p.status]}</span></span></button></li>`;
+  }).join('');
+  const empty = $('listEmpty');
+  empty.hidden = list.length > 0;
+  empty.textContent = total
+    ? 'Нічого не знайдено. Спробуй інший пошук або фільтр'
+    : 'Тут поки порожньо. Додай перший костюм у розділі «Додати»';
+}
+const find = (id) => S.items.find((p) => p.id === id);
+
+function openDlg(d) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+function closeDlg(d) { if (d.close) d.close(); else d.removeAttribute('open'); }
+
+function openActions(id) {
+  const p = find(id);
+  if (!p) return;
+  const b = [];
+  b.push('<button class="btn block" data-act="edit">Редагувати</button>');
+  b.push('<button class="btn block" data-act="texts">Тексти для Instagram і Shafa</button>');
+  if (p.status === 'available' || p.status === 'reserved') b.push(`<a class="btn block" href="/?art=${esc(p.id)}" target="_blank" rel="noopener">Відкрити на сайті</a>`);
+  if (p.status !== 'available') b.push('<button class="btn block" data-act="set" data-v="available">Повернути на сайт</button>');
+  if (p.status !== 'reserved') b.push('<button class="btn block" data-act="set" data-v="reserved">Поставити резерв</button>');
+  if (p.status !== 'sold') b.push('<button class="btn primary block" data-act="set" data-v="sold">Продано</button>');
+  if (p.status !== 'hidden') b.push('<button class="btn block" data-act="set" data-v="hidden">Сховати з сайту</button>');
+  b.push('<button class="btn danger block" data-act="delete">Видалити</button>');
+  b.push('<button class="btn block" data-act="close">Закрити</button>');
+  $('actBody').innerHTML = `<h3>${esc(p.name)}</h3><p class="sub">${esc(p.id)} · ${p.price} грн · ${STATUS_LABEL[p.status]}</p>${b.join('')}`;
+  $('actBody').dataset.id = id;
+  openDlg($('dlgAct'));
+}
+async function setStatus(id, status) {
+  try {
+    const res = await api('PATCH', `/api/admin/product/${id}`, { status });
+    const i = S.items.findIndex((x) => x.id === id);
+    if (i >= 0) S.items[i] = res.item;
+    const msg = {
+      available: 'Лот знову на сайті', reserved: 'Поставлено резерв', hidden: 'Лот схований із сайту',
+      sold: 'Продано, лот знято з сайту. Прибери його ще в Instagram і на Shafa'
+    }[status];
+    toast(msg, false, status === 'sold' ? 6500 : 3200);
+    refreshList(true);
+    renderList();
+  } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
+}
+async function removeItem(id) {
+  const p = find(id);
+  if (!p || !confirm(`Видалити «${p.name}»? Фото теж зникнуть`)) return;
+  try {
+    await api('DELETE', `/api/admin/product/${id}`);
+    S.items = S.items.filter((x) => x.id !== id);
+    toast('Видалено');
+    refreshList(true);
+    renderList();
+  } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
+}
+
+/* ---------- Готові тексти ---------- */
+const sizeText = (s) => (/^\d/.test(s) && !/см/i.test(s) ? `${s} см` : s);
+function hashtags(p) {
+  const set = [];
+  const add = (str) => String(str || '').split(/\s+/).filter(Boolean).forEach((t) => { if (!set.includes(t)) set.push(t); });
+  add(S.settings.hashtags);
+  p.audience.forEach((a) => add(AUD_HASHTAGS[a]));
+  p.tags.forEach((t) => {
+    const cfg = S.tagCfg.find((x) => x.key === t);
+    add(TAG_HASHTAGS[t] || (cfg ? '#' + cfg.label.replace(/[^\p{L}\p{N}]+/gu, '') : ''));
+  });
+  return set.slice(0, 25).join(' ');
+}
+const yearsWord = (n) => (n % 10 === 1 && n % 100 !== 11 ? 'рік' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'роки' : 'років'));
+const ageText = (p) => (p.ageFrom == null ? '' : (p.ageTo === p.ageFrom ? `${p.ageFrom} ${yearsWord(p.ageFrom)}` : `${p.ageFrom}–${p.ageTo} ${yearsWord(p.ageTo)}`));
+const lengthLabel = (p) => (p.lengthKind === 'tag' ? 'Довжина від бірки до низу' : (p.lengthKind === 'height' ? 'Висота' : 'Довжина'));
+const condText = (p) => (p.condition === 'Новий' ? 'новий' : `${p.condition.toLowerCase()}, вживаний`);
+function textInstagram(p) {
+  const site = String((S.site && S.site.seo.siteUrl) || S.settings.siteUrl || '').replace(/\/+$/, '');
+  const L = [p.name, ''];
+  L.push(`📏 Розмір: ${sizeText(p.size)}`);
+  L.push(`${p.condition === 'Новий' ? '✨' : '♻️'} Стан: ${condText(p)}`);
+  if (p.ageFrom != null) L.push(`🎂 Вік: ${ageText(p)}`);
+  if (p.length) L.push(`📐 ${lengthLabel(p)}: ${p.length}`);
+  L.push(`💰 Ціна: ${p.price} грн${p.oldPrice ? ` (було ${p.oldPrice})` : ''}`);
+  if (p.desc) L.push('', p.desc);
+  L.push('', `Артикул: ${p.id}`);
+  if (site) L.push(`🔗 ${site.replace(/^https?:\/\//, '')}/p/${p.id}`);
+  if (S.settings.signature.trim()) L.push('', S.settings.signature.trim());
+  L.push('', hashtags(p));
+  return L.join('\n');
+}
+const textShafaTitle = (p) => `${p.name}, ${sizeText(p.size)}`.slice(0, 70);
+function textShafaDesc(p) {
+  const L = [`Розмір: ${sizeText(p.size)}.`, `Стан: ${condText(p)}.`];
+  if (p.ageFrom != null) L.push(`Вік: ${ageText(p)}.`);
+  if (p.length) L.push(`${lengthLabel(p)}: ${p.length}.`);
+  if (p.desc) L.push('', p.desc);
+  L.push('', `Артикул: ${p.id}`);
+  return L.join('\n');
+}
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return; }
+  const t = document.createElement('textarea');
+  t.value = text; t.style.cssText = 'position:fixed;opacity:0;top:0';
+  document.body.appendChild(t); t.focus(); t.select();
+  const ok = document.execCommand && document.execCommand('copy');
+  t.remove();
+  if (!ok) throw new Error('copy failed');
+}
+function showTexts(p, heading) {
+  const published = p.status === 'available' || p.status === 'reserved';
+  const sub = heading
+    ? (published ? 'Костюм уже на сайті. Тепер виклади його в Instagram і на Shafa: скопіюй текст, а фото вибери з галереї.'
+                 : 'Лот збережено, на сайті його не видно, доки не поставиш «На сайті».')
+    : 'Скопіюй текст і вставляй у Instagram чи Shafa. Фото вибери з галереї.';
+  const block = (title, text, cls, rows) =>
+    `<div class="tblock"><div class="thead"><span>${title}</span><button type="button" class="copy" data-copy>Копіювати</button></div>` +
+    `<textarea readonly class="${cls || ''}" rows="${cls === 'short' ? 2 : (rows || 8)}">${esc(text)}</textarea></div>`;
+  $('textsBody').innerHTML =
+    `<h3>${esc(heading || 'Тексти')} · ${esc(p.id)}</h3><p class="sub">${esc(sub)}</p>` +
+    block('Instagram', textInstagram(p), '', 13) +
+    block('Shafa: назва', textShafaTitle(p), 'short') +
+    block('Shafa: опис', textShafaDesc(p)) +
+    `<p class="sub" style="margin-top:12px">У тексті для Shafa немає телефону й посилань.</p>` +
+    (published ? `<a class="btn block" href="/?art=${esc(p.id)}" target="_blank" rel="noopener">Відкрити на сайті</a>` : '') +
+    '<button type="button" class="btn block" data-close>Готово</button>';
+  openDlg($('dlgTexts'));
+}
+
+
+/* ---------- Імпорт із Shafa ---------- */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function impLog(html, cls) {
+  const li = document.createElement('li');
+  li.className = cls || '';
+  li.innerHTML = html;
+  $('impLog').appendChild(li);
+  return li;
+}
+async function importOne(url, html) {
+  const r = await api('POST', '/api/admin/import', html ? { html, url } : { url });
+  const d = r.draft;
+  const ids = [];
+  let lost = 0;
+  for (const shafaPhoto of d.photos) {
+    try {
+      const p = await processPhoto(await apiBlob('/api/admin/import-img?id=' + encodeURIComponent(shafaPhoto)));
+      URL.revokeObjectURL(p.url);
+      await putPhoto(p);
+      ids.push(p.id);
+    } catch (e) { lost++; }
+  }
+  if (lost) d.warnings.push(`${lost} фото не завантажилось`);
+  const res = await api('POST', '/api/admin/product', {
+    name: d.name, audience: d.audience, tags: d.tags, size: d.size, condition: d.condition,
+    price: d.price || 0, desc: d.desc, status: 'hidden', images: ids, src: d.src, srcUrl: d.url || undefined, srcPrice: d.price || undefined,
+    ageFrom: d.ageFrom ?? undefined, ageTo: d.ageTo ?? undefined, length: d.length || undefined, lengthKind: d.lengthKind || undefined
+  });
+  return { item: res.item, draft: d };
+}
+function finishImport(ok, dup, fail) {
+  S.importing = false;
+  $('impGo').disabled = false;
+  $('impHtmlGo').disabled = false;
+  impLog(`<b>Готово:</b> імпортовано ${ok}, уже були ${dup}, помилок ${fail}.`, ok ? 'ok' : '');
+  $('impDone').hidden = ok === 0;
+  refreshList(true);
+}
+async function runImport(jobs) {      // jobs: [{ url, html }]
+  if (S.importing || !jobs.length) return;
+  S.importing = true;
+  $('impGo').disabled = true; $('impHtmlGo').disabled = true;
+  $('impLog').innerHTML = ''; $('impDone').hidden = true;
+  let ok = 0, dup = 0, fail = 0;
+  for (let i = 0; i < jobs.length; i++) {
+    const { url, html } = jobs[i];
+    const label = html ? 'код сторінки' : url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60);
+    const li = impLog(`${i + 1} з ${jobs.length}: ${esc(label)} …`, 'wait');
+    try {
+      const { item, draft } = await importOne(url, html);
+      ok++;
+      li.className = 'ok';
+      li.innerHTML = `✓ ${esc(item.id)}: ${esc(item.name)} <small>(${item.images.length} фото${draft.warnings.length ? '; ' + esc(draft.warnings.join('; ')) : ''})</small>`;
+    } catch (e) {
+      if (e.code === 'bad_password') { S.importing = false; logout(); return; }
+      if (e.code === 'dup') { dup++; li.className = 'dup'; li.textContent = '• ' + e.message; }
+      else {
+        fail++; li.className = 'bad'; li.textContent = '✕ ' + e.message;
+        if (e.code === 'blocked') { $('impFallback').open = true; break; }   // далі пробувати немає сенсу
+      }
+    }
+    if (i < jobs.length - 1) await sleep(700);   // не навантажуємо Shafa
+  }
+  finishImport(ok, dup, fail);
+}
+function startImport() {
+  const urls = [...new Set($('impUrls').value.split(/\s+/).map((x) => x.trim()).filter(Boolean))];
+  if (!urls.length) { toast('Встав хоча б одне посилання', true); return; }
+  if (urls.length > 40) { toast('За раз до 40 посилань', true); return; }
+  runImport(urls.map((url) => ({ url })));
+}
+function startImportHtml() {
+  const html = $('impHtml').value;
+  if (html.trim().length < 500) { toast('Встав весь код сторінки (Ctrl+A, Ctrl+C)', true); return; }
+  runImport([{ url: '', html }]);
+}
+
+/* ---------- Хештеги й колекції ---------- */
+function renderTagEditor() {
+  const list = $('tagList');
+  if (!list) return;
+  list.innerHTML = S.tagDraft.map((t, i) =>
+    `<div class="tag-row" data-i="${i}"><div class="tag-line"><span aria-hidden="true">#</span>` +
+    `<input class="fi tl" value="${esc(t.label)}" maxlength="30" aria-label="Хештег ${i + 1}">` +
+    `<span class="tag-ops"><button type="button" data-op="up" aria-label="Вище">↑</button><button type="button" data-op="down" aria-label="Нижче">↓</button><button type="button" data-op="del" aria-label="Видалити хештег">×</button></span></div>` +
+    `<label class="chk"><input type="checkbox" class="tc"${t.collection ? ' checked' : ''}> Окремий блок на сайті</label>` +
+    (t.collection ? `<input class="fi tt" value="${esc(t.title || '')}" maxlength="50" placeholder="Назва блока, наприклад: Новорічні костюми" aria-label="Назва блока">` : '') +
+    '</div>').join('') || '<p class="hint">Хештегів немає. Додай перший нижче.</p>';
+}
+function syncTagDraft() {
+  document.querySelectorAll('#tagList .tag-row').forEach((row) => {
+    const t = S.tagDraft[Number(row.dataset.i)];
+    if (!t) return;
+    t.label = row.querySelector('.tl').value;
+    t.collection = row.querySelector('.tc').checked;
+    const tt = row.querySelector('.tt');
+    if (tt) t.title = tt.value;
+  });
+}
+async function saveTags() {
+  syncTagDraft();
+  try {
+    const res = await api('PUT', '/api/admin/tags', { tags: S.tagDraft });
+    S.tagCfg = res.tags;
+    S.tagDraft = JSON.parse(JSON.stringify(res.tags));
+    S.tagDirty = false;
+    S.tags = S.tags.filter((k) => S.tagCfg.some((t) => t.key === k));
+    renderTags(); renderTagEditor();
+    toast('Хештеги збережено');
+  } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
+}
+
+/* ---------- Масова публікація чернеток ---------- */
+async function publishDrafts() {
+  const drafts = S.items.filter((p) => p.status === 'hidden');
+  const ready = drafts.filter((p) => p.price >= 1 && p.size !== 'уточнити' && p.images.length);
+  if (!ready.length) { toast('Немає чернеток, готових до публікації: заповни ціну, розмір і фото', true, 5000); return; }
+  const skipped = drafts.length - ready.length;
+  if (!confirm(`Опублікувати на сайті ${ready.length} чернеток?` + (skipped ? ` Ще ${skipped} пропущу: у них немає ціни, розміру чи фото.` : ''))) return;
+  const btn = $('bulkPub');
+  btn.disabled = true;
+  let done = 0;
+  try {
+    for (const p of ready) {
+      btn.textContent = `Публікую ${done + 1} з ${ready.length}…`;
+      const res = await api('PATCH', `/api/admin/product/${p.id}`, { status: 'available' });
+      const i = S.items.findIndex((x) => x.id === p.id);
+      if (i >= 0) S.items[i] = res.item;
+      done++;
+    }
+    toast(`Опубліковано: ${done}`);
+  } catch (e) {
+    if (e.code === 'bad_password') { logout(); return; }
+    toast(`${e.message} (опубліковано ${done})`, true, 5000);
+  } finally {
+    btn.disabled = false;
+    refreshList(true); renderList();
+  }
+}
+
+
+
+/* ---------- Контакти й SEO ---------- */
+const SITE_FIELDS = { stPhone: ['contacts', 'phone'], stPhone2: ['contacts', 'phone2'], stViber: ['contacts', 'viber'], stTelegram: ['contacts', 'telegram'], stInstagram: ['contacts', 'instagram'],
+  stShafa: ['contacts', 'shafa'], stCity: ['contacts', 'city'], stAddress: ['contacts', 'address'], stHours: ['contacts', 'hours'],
+  seoTitle: ['seo', 'title'], seoDesc: ['seo', 'description'], seoKeywords: ['seo', 'keywords'], seoUrl: ['seo', 'siteUrl'], seoGsc: ['seo', 'gsc'], seoGa: ['seo', 'gaId'] };
+function renderSeoPreview() {
+  const t = $('seoTitle').value.trim(), d = $('seoDesc').value.trim();
+  $('seoTitleN').textContent = `${t.length} з 60 радимо`;
+  $('seoDescN').textContent = `${d.length} з 160 радимо`;
+  const base = ($('seoUrl').value.trim() || S.siteOrigin || location.origin).replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  $('seoPreview').innerHTML = `<b>${esc(t.slice(0, 70) || 'Назва сайту')}</b><i>${esc(base)}</i><span>${esc(d.slice(0, 165) || 'Опис сайту')}</span>`;
+  const origin = ($('seoUrl').value.trim() || S.siteOrigin || location.origin).replace(/\/+$/, '');
+  $('seoMapLink').textContent = (/^https?:/.test(origin) ? origin : 'https://' + origin) + '/sitemap.xml';
+}
+function fillSiteFields() {
+  const s = S.site;
+  if (!s || S.siteDirty) return;
+  for (const [id, [grp, key]] of Object.entries(SITE_FIELDS)) $(id).value = s[grp][key] || '';
+  fillTrackFields();
+  renderSeoPreview();
+}
+async function loadSiteSettings() {
+  try {
+    const r = await api('GET', '/api/admin/site');
+    S.site = r.site; S.siteOrigin = r.origin || '';
+    fillSiteFields();
+  } catch (e) { if (e.code === 'bad_password') logout(); }
+}
+async function saveSiteSettings() {
+  const body = { contacts: {}, seo: {}, track: { consent: $('trConsent').checked } };
+  for (const [id, [grp, key]] of Object.entries(SITE_FIELDS)) body[grp][key] = $(id).value;
+  for (const [id, key] of Object.entries(TRACK_FIELDS)) body.track[key] = $(id).value;
+  try {
+    const r = await api('PUT', '/api/admin/site', body);
+    S.site = r.site; S.siteDirty = false;
+    for (const [id, [grp, key]] of Object.entries(SITE_FIELDS)) $(id).value = r.site[grp][key] || '';
+    S.site = r.site; S.siteDirty = false; fillTrackFields();
+    renderSeoPreview();
+    toast('Збережено. На сайті зміни з’являться протягом хвилини');
+  } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true, 5000); }
+}
+
+
+/* ---------- Замовлення ---------- */
+const ORD_STATUS = { new: 'Нове', work: 'В роботі', done: 'Виконано', cancel: 'Скасовано' };
+function fmtOrderTime(iso) { return new Date(iso).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+function telHref(phone) { const d = String(phone).replace(/\D/g, ''); return d.length === 10 ? '+38' + d : '+' + d; }
+function renderOrders() {
+  const box = $('ordList');
+  if (!box) return;
+  const f = S.ordFilter;
+  const list = S.orders.filter((o) => f === 'all' || o.status === f);
+  const c = S.ordCounts;
+  const badge = $('ordBadge');
+  if (badge) { badge.textContent = c.new > 99 ? '99+' : String(c.new); badge.hidden = !c.new; }
+  document.querySelectorAll('#segOrd button').forEach((b) => {
+    const k = b.dataset.v;
+    const n = k === 'all' ? S.orders.length : (c[k] || 0);
+    b.textContent = ({ all: 'Усі', new: 'Нові', work: 'В роботі', done: 'Виконані' })[k] + (n ? ` (${n})` : '');
+    b.setAttribute('aria-pressed', String(k === f));
+  });
+  if (!list.length) { box.innerHTML = `<p class="muted" style="padding:18px 4px">${S.ordLoaded ? 'Замовлень у цьому списку немає.' : 'Завантажую…'}</p>`; return; }
+  box.innerHTML = list.map((o) => {
+    const tel = telHref(o.phone);
+    const item = S.items.find((p) => p.id === o.productId);
+    const live = item && (item.status === 'available' || item.status === 'reserved');
+    return `<li class="ord ord-${esc(o.status)}" data-key="${esc(o.key)}">
+      <div class="ord-top"><b>№ ${esc(o.number)}</b><span class="pill s-${o.status === 'new' ? 'available' : (o.status === 'work' ? 'reserved' : (o.status === 'done' ? 'sold' : 'hidden'))}">${esc(ORD_STATUS[o.status] || o.status)}</span><small>${esc(fmtOrderTime(o.createdAt))}</small></div>
+      <div class="ord-item">${esc(o.productName)} <small>${esc(o.productId)}, ${esc(o.size)}, ${esc(o.price)} грн</small></div>
+      <div class="ord-who">${esc(o.name)}, <a href="tel:${esc(tel)}">${esc(o.phone)}</a></div>
+      ${o.comment ? `<div class="ord-note">${esc(o.comment)}</div>` : ''}
+      <div class="ord-act">
+        <a class="btn" href="tel:${esc(tel)}">Подзвонити</a>
+        <a class="btn" href="viber://chat?number=${encodeURIComponent(tel)}">Viber</a>
+        ${o.status === 'new' ? '<button type="button" class="btn" data-os="work">Беру в роботу</button>' : ''}
+        ${o.status === 'work' ? '<button type="button" class="btn primary" data-os="done">Виконано</button>' : ''}
+        ${o.status === 'new' || o.status === 'work' ? '<button type="button" class="btn" data-os="cancel">Скасувати</button>' : '<button type="button" class="btn" data-os="new">Повернути в нові</button>'}
+        ${live && item.status === 'available' ? `<button type="button" class="btn" data-item="${esc(o.productId)}" data-set="reserved">Зарезервувати лот</button>` : ''}
+        ${live ? `<button type="button" class="btn" data-item="${esc(o.productId)}" data-set="sold">Позначити проданим</button>` : ''}
+      </div></li>`;
+  }).join('');
+}
+async function refreshOrders(quiet) {
+  if (S.apiVersion < 7) return;
+  try {
+    const r = await api('GET', '/api/admin/orders');
+    const prevNew = S.ordCounts.new;
+    S.orders = r.items; S.ordCounts = r.counts; S.ordLoaded = true;
+    renderOrders();
+    if (quiet && r.counts.new > prevNew && S.ordSeen) toast(`Нове замовлення: ${r.counts.new - prevNew}`);
+    S.ordSeen = true;
+  } catch (e) { if (e.code === 'bad_password') logout(); }
+}
+async function orderStatus(key, status) {
+  try { const r = await api('PATCH', `/api/admin/order/${key}`, { status }); const i = S.orders.findIndex((o) => o.key === key); if (i >= 0) S.orders[i] = r.item; S.ordCounts = { new: 0, work: 0, done: 0, cancel: 0 }; S.orders.forEach((o) => { if (o.status in S.ordCounts) S.ordCounts[o.status]++; }); renderOrders(); }
+  catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
+}
+async function orderItem(id, status) {
+  const p = S.items.find((x) => x.id === id);
+  if (!p) return;
+  try { const r = await api('PATCH', `/api/admin/product/${id}`, { status }); const i = S.items.findIndex((x) => x.id === id); if (i >= 0) S.items[i] = r.item; renderOrders(); renderList(); toast(status === 'sold' ? 'Лот позначено проданим' : 'Лот у резерві'); }
+  catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
+}
+
+/* ---------- Мітки й піксели ---------- */
+const TRACK_FIELDS = { trGtm: 'gtm', trFb: 'fb', trTt: 'tt', trAds: 'adsId', trAdsLabel: 'adsLabel', trClarity: 'clarity', trHead: 'headCode', trBody: 'bodyCode', trConsentText: 'consentText' };
+function fillTrackFields() {
+  const s = S.site;
+  if (!s || S.siteDirty) return;
+  const t = s.track || {};
+  for (const [id, key] of Object.entries(TRACK_FIELDS)) $(id).value = t[key] || '';
+  $('trConsent').checked = !!t.consent;
+}
+
+/* ---------- Автоперевірка Shafa ---------- */
+const fmtKyiv = (ms) => new Date(ms).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+function syncProgressText(p) {
+  if (!p) return '';
+  if (p.phase === 'list') return `Збираю список товарів на Shafa (знайдено ${p.found})…`;
+  if (p.phase === 'check') return `Перевіряю лоти: ${p.idx} з ${p.total}…`;
+  return 'Завершую перевірку…';
+}
+function renderSync() {
+  const d = S.sync;
+  const box = $('syStatus');
+  if (!box) return;
+  if (!d) { box.textContent = ''; return; }
+  const c = d.config;
+  if (!S.syncDirty) {
+    $('syEnabled').checked = c.enabled; $('syApply').checked = c.apply; $('syPrices').checked = c.prices;
+    $('sySold').checked = c.sold; $('syNew').checked = c.findNew; $('syUrl').value = c.profileUrl;
+  }
+  let h = '';
+  if (d.running) h += `<p class="sy-run">⏳ ${esc(syncProgressText(d.progress))}</p>`;
+  const r = d.last;
+  if (!r) h += '<p class="hint">Перевірок ще не було. Натисни «Перевірити зараз», щоб випробувати.</p>';
+  else if (!r.ok) h += `<p class="sy-bad">Остання перевірка (${esc(fmtKyiv(r.at))}) не вдалася: ${esc(r.error)}</p>`;
+  else {
+    h += `<p><b>Остання перевірка: ${esc(fmtKyiv(r.at))}.</b> На Shafa знайдено ${r.listed} товарів, на сайті перевірено ${r.checked}${r.errors ? `, не вдалося прочитати ${r.errors}` : ''}.</p>`;
+    const lines = r.changes.slice(0, 8).map((x) => x.kind === 'price'
+      ? `💰 ${esc(x.name)}: ${x.from} → ${x.to} грн${x.applied ? ' (оновлено на сайті)' : x.skipped ? ` (${esc(x.skipped)})` : ''}`
+      : `🚫 ${esc(x.name)}: ${esc(x.why)}${x.applied ? ' (знято з сайту)' : ''}`);
+    if (r.changes.length > 8) lines.push(`…і ще ${r.changes.length - 8}`);
+    h += lines.length ? `<ul class="sy-list">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>` : '<p class="hint">Змін немає.</p>';
+    for (const n of r.notes) h += `<p class="sy-bad">⚠️ ${esc(n)}</p>`;
+    if (!r.applied && r.changes.length) h += '<p class="hint">Зміни на сайті не застосовано: увімкнено режим «лише повідомляти».</p>';
+    if (r.newLinks.length) h += `<p>🆕 Нових товарів на Shafa: <b>${r.newLinks.length}</b> <button class="link" id="syImportNew" type="button">Імпортувати нові</button></p>`;
+  }
+  box.innerHTML = h;
+}
+async function loadSync() {
+  try { S.sync = await api('GET', '/api/admin/sync'); renderSync(); return S.sync; }
+  catch (e) { if (e.code === 'bad_password') { logout(); return null; } if (S.apiVersion < 5) return null; toast(e.message, true); return null; }
+}
+async function saveSync() {
+  const body = { enabled: $('syEnabled').checked, apply: $('syApply').checked, prices: $('syPrices').checked, sold: $('sySold').checked, findNew: $('syNew').checked, profileUrl: $('syUrl').value };
+  try {
+    const r = await api('PUT', '/api/admin/sync', body);
+    S.syncDirty = false; if (S.sync) S.sync.config = r.config;
+    renderSync(); toast('Налаштування збережено');
+  } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
+}
+async function runSyncNow() {
+  if (S.syncBusy) return;
+  S.syncBusy = true; $('syRun').disabled = true;
+  try {
+    const start = await api('POST', '/api/admin/sync/run');
+    let slice = start.mode === 'slice';                     // без фонових функцій перевірку ведемо частинами самі
+    let d = await loadSync();
+    let lastSig = JSON.stringify(d?.progress), lastChange = Date.now();
+    for (let i = 0; i < 600 && d && d.running; i++) {       // до ~30 хвилин
+      if (slice) { const r = await api('POST', '/api/admin/sync/run?slice=1'); if (r.skipped === 'busy') await sleep(3000); }
+      else await sleep(3000);
+      d = await loadSync();
+      const sig = JSON.stringify(d?.progress);
+      if (sig !== lastSig) { lastSig = sig; lastChange = Date.now(); }
+      else if (!slice && Date.now() - lastChange > 60000) slice = true;   // фонова функція мовчить: ведемо самі
+    }
+    await refreshList(true);
+    toast('Перевірку завершено');
+  } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true, 5000); }
+  finally { S.syncBusy = false; $('syRun').disabled = false; loadSync(); }
+}
+function importNewFromShafa() {
+  const links = S.sync?.last?.newLinks || [];
+  if (!links.length) return;
+  $('impUrls').value = links.slice(0, 40).join('\n');
+  $('impBox').open = true;
+  switchTab('add');
+  $('impBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ---------- Події ---------- */
+function init() {
+  renderStaticChips(); renderTags(); renderPhotos(); resetForm();
+  $('setSite').value = S.settings.siteUrl;
+  $('setSign').value = S.settings.signature;
+  $('setTags').value = S.settings.hashtags;
+
+  $('loginBtn').addEventListener('click', () => { const v = $('pw').value; if (v) login(v); });
+  $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('loginBtn').click(); });
+  $('btnLogout').addEventListener('click', logout);
+
+  document.querySelector('.bar').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-tab]');
+    if (b) switchTab(b.dataset.tab);
+  });
+
+  $('photoGrid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const i = Number(b.dataset.i);
+    if (b.dataset.act === 'add') $('photoInput').click();
+    if (b.dataset.act === 'del') {
+      const [gone] = S.photos.splice(i, 1);
+      if (gone && !gone.remote) URL.revokeObjectURL(gone.url);
+      renderPhotos();
+    }
+    if (b.dataset.act === 'cover') { const [p] = S.photos.splice(i, 1); S.photos.unshift(p); renderPhotos(); }
+  });
+  $('photoInput').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+
+  $('segAudience').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.audience = b.dataset.v; renderSeg('segAudience', S.audience); } });
+  $('segLenKind').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.lenKind = b.dataset.v; renderSeg('segLenKind', S.lenKind); } });
+  $('segCond').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.cond = b.dataset.v; renderSeg('segCond', S.cond); } });
+  $('segStatus').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.status = b.dataset.v; renderSeg('segStatus', S.status); refreshSaveLabel(); } });
+  $('chipTags').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const k = b.dataset.v;
+    S.tags = S.tags.includes(k) ? S.tags.filter((x) => x !== k) : [...S.tags, k];
+    renderTags();
+  });
+  $('fFrom').addEventListener('change', () => { $('fSize').value = ''; });
+  $('fTo').addEventListener('change', () => { $('fSize').value = ''; });
+  $('fSize').addEventListener('input', () => { $('fFrom').value = ''; $('fTo').value = ''; });
+  $('btnSave').addEventListener('click', save);
+  $('cancelEdit').addEventListener('click', () => { resetForm(); });
+
+  $('segFilter').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.filter = b.dataset.v; renderSeg('segFilter', S.filter); renderList(); } });
+  $('q').addEventListener('input', renderList);
+  $('list').addEventListener('click', (e) => { const b = e.target.closest('.row'); if (b) openActions(b.dataset.id); });
+
+  $('dlgAct').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (e.target === $('dlgAct')) { closeDlg($('dlgAct')); return; }
+    if (!b) return;
+    const id = $('actBody').dataset.id;
+    const act = b.dataset.act;
+    closeDlg($('dlgAct'));
+    if (act === 'edit') startEdit(find(id));
+    if (act === 'texts') showTexts(find(id));
+    if (act === 'set') setStatus(id, b.dataset.v);
+    if (act === 'delete') removeItem(id);
+  });
+  $('dlgTexts').addEventListener('click', async (e) => {
+    if (e.target === $('dlgTexts') || e.target.closest('[data-close]')) { closeDlg($('dlgTexts')); return; }
+    const b = e.target.closest('[data-copy]');
+    if (!b) return;
+    const ta = b.closest('.tblock').querySelector('textarea');
+    try {
+      await copyText(ta.value);
+      b.textContent = 'Скопійовано'; b.classList.add('done');
+      setTimeout(() => { b.textContent = 'Копіювати'; b.classList.remove('done'); }, 1800);
+    } catch { ta.focus(); ta.select(); toast('Не вдалось скопіювати. Текст виділено, натисни «Копіювати» у меню телефона', true, 5000); }
+  });
+
+  $('setSite').addEventListener('change', (e) => { S.settings.siteUrl = e.target.value.trim(); saveSettings(); toast('Збережено'); });
+  $('setSign').addEventListener('change', (e) => { S.settings.signature = e.target.value; saveSettings(); toast('Збережено'); });
+  $('setTags').addEventListener('change', (e) => { S.settings.hashtags = e.target.value; saveSettings(); toast('Збережено'); });
+  $('btnBackup').addEventListener('click', async () => {
+    try {
+      const d = await api('GET', '/api/admin/products');
+      const blob = new Blob([JSON.stringify(d.items, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `aliceland-catalog-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+      toast('Копію збережено');
+    } catch (err) { toast(err.message, true); }
+  });
+
+  $('tagList').addEventListener('input', () => { S.tagDirty = true; syncTagDraft(); });
+  $('tagList').addEventListener('change', (e) => { if (e.target.classList.contains('tc')) { S.tagDirty = true; syncTagDraft(); renderTagEditor(); } });
+  $('tagList').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-op]');
+    if (!b) return;
+    syncTagDraft(); S.tagDirty = true;
+    const i = Number(b.closest('.tag-row').dataset.i);
+    const op = b.dataset.op;
+    if (op === 'del') { const t = S.tagDraft[i]; if (confirm(`Видалити #${t.label}? У костюмів цей хештег зникне після наступного збереження.`)) S.tagDraft.splice(i, 1); }
+    if (op === 'up' && i > 0) [S.tagDraft[i - 1], S.tagDraft[i]] = [S.tagDraft[i], S.tagDraft[i - 1]];
+    if (op === 'down' && i < S.tagDraft.length - 1) [S.tagDraft[i + 1], S.tagDraft[i]] = [S.tagDraft[i], S.tagDraft[i + 1]];
+    renderTagEditor();
+  });
+  const addTag = () => { const v = $('tagNew').value.trim(); if (!v) return; syncTagDraft(); S.tagDraft.push({ key: '', label: v, title: '', collection: false }); S.tagDirty = true; $('tagNew').value = ''; renderTagEditor(); };
+  $('tagAdd').addEventListener('click', addTag);
+  $('tagNew').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTag(); });
+  $('tagSave').addEventListener('click', saveTags);
+  $('impGo').addEventListener('click', startImport);
+  $('impHtmlGo').addEventListener('click', startImportHtml);
+  $('impOpen').addEventListener('click', () => { S.filter = 'hidden'; renderSeg('segFilter', 'hidden'); renderList(); switchTab('list'); });
+  $('bulkPub').addEventListener('click', publishDrafts);
+  $('stSave').addEventListener('click', saveSiteSettings);
+  $('trSave').addEventListener('click', saveSiteSettings);
+  $('trackCard').addEventListener('input', () => { S.siteDirty = true; });
+  $('trackCard').addEventListener('change', () => { S.siteDirty = true; });
+  $('segOrd').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.ordFilter = b.dataset.v; renderOrders(); } });
+  $('ordList').addEventListener('click', (e) => {
+    const li = e.target.closest('.ord'); if (!li) return;
+    const st = e.target.closest('[data-os]'); if (st) { orderStatus(li.dataset.key, st.dataset.os); return; }
+    const it = e.target.closest('[data-item]'); if (it) orderItem(it.dataset.item, it.dataset.set);
+  });
+  setInterval(() => { if (S.key && !$('appView').hidden && !document.hidden) refreshOrders(true); }, 60000);
+  $('seoSave').addEventListener('click', saveSiteSettings);
+  $('contactCard').addEventListener('input', () => { S.siteDirty = true; });
+  $('seoCard').addEventListener('input', () => { S.siteDirty = true; renderSeoPreview(); });
+  $('sySave').addEventListener('click', saveSync);
+  $('syRun').addEventListener('click', runSyncNow);
+  $('syncCard').addEventListener('input', () => { S.syncDirty = true; });
+  $('syStatus').addEventListener('click', (e) => { if (e.target.id === 'syImportNew') importNewFromShafa(); });
+
+  const saved = localStorage.getItem(KEY_STORE);
+  if (saved) login(saved, true); else showLogin();
+}
+function renderAll() { renderList(); renderPhotos(); renderTags(); renderTagEditor(); }
+
+window.__alAdmin = { sizeValue, setSizeFields };   // для автоматичних тестів
+init();
+})();
+</script>
+</body>
+</html>

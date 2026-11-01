@@ -1,0 +1,6 @@
+# Головна й сторінки товарів віддає функція seo (налаштування контактів і SEO з адмінки).
+# Знак ! змушує правило працювати, навіть коли поруч лежить звичайний файл index.html.
+/              /.netlify/functions/seo?kind=home         200!
+/p/:id         /.netlify/functions/seo?kind=product&id=:id  200
+/sitemap.xml   /.netlify/functions/seo?kind=sitemap      200
+/robots.txt    /.netlify/functions/seo?kind=robots       200
