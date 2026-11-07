@@ -12,7 +12,7 @@ export const DEFAULT_SITE = {
   seo: {
     title: "AliceLand — Карнавальні костюми Хмельницький",
     description: "Вживані карнавальні костюми для дівчаток і хлопчиків: принцеси, супергерої, феї, тварини, Хелловін. Живі фото, зріст і чесний стан у кожної картки.",
-    keywords: "карнавальні костюми, вживані карнавальні костюми, дитячі карнавальні костюми, костюм на Хелловін, новорічні костюми, Хмельницький",
+    keywords: "карнавальні костюми, дитячі карнавальні костюми, костюми б/у, вживані костюми, костюм на хелловін, костюм гарбуза, костюм скелета, костюм відьмочки, новорічні костюми, костюм сніговика, костюм принцеси, костюм феї, костюм на ранок у садочку, костюми Хмельницький, купити костюм Хмельницький",
     siteUrl: "", gsc: "", gaId: "",
   },
   track: { ...DEFAULT_TRACK },
@@ -128,7 +128,7 @@ export function renderTemplate(tpl, vars) {
 export const sizeText = (s) => (/^\d/.test(s) && !/см/i.test(s) ? s + " см" : s);
 const yearsWord = (n) => (n % 10 === 1 && n % 100 !== 11 ? "рік" : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "роки" : "років"));
 export const ageText = (p) => (p.ageFrom == null ? "" : (p.ageTo === p.ageFrom ? `${p.ageFrom} ${yearsWord(p.ageFrom)}` : `${p.ageFrom}–${p.ageTo} ${yearsWord(p.ageTo)}`));
-export const lengthLabel = (p) => (p.lengthKind === "tag" ? "Довжина від бірки до низу" : (p.lengthKind === "height" ? "Висота" : "Довжина"));
+export const lengthLabel = (p) => (p.lengthKind === "tag" ? "Довжина від бірки до низу" : (p.lengthKind === "shoulder" ? "Довжина від плеча" : (p.lengthKind === "height" ? "Висота" : "Довжина")));
 export const conditionText = (p) => (p.condition === "Новий" ? "новий" : `${String(p.condition || "").toLowerCase()}, вживаний`);
 
 const origin = (site, reqOrigin) => (site.seo.siteUrl || reqOrigin || "").replace(/\/+$/, "");
@@ -200,7 +200,7 @@ a{color:inherit}img{max-width:100%;display:block}
 .crumbs{margin:18px 0 14px;font-size:15.5px;color:var(--muted)}.crumbs a{color:var(--night-3);font-weight:800}
 .prod{display:grid;gap:18px;padding-bottom:36px;grid-template-areas:"top" "gal" "rest"}
 .p-top{grid-area:top}.gal{grid-area:gal}.p-rest{grid-area:rest}
-.gal{display:grid;gap:10px;align-content:start}.gal img{width:100%;border-radius:20px;background:#e8eaf6;aspect-ratio:4/5;object-fit:cover}
+.gal{display:grid;gap:10px;align-content:start}.gal img{width:100%;max-height:78vh;border-radius:20px;background:#e8eaf6;object-fit:contain}
 h1{font:700 clamp(22px,4.4vw,32px)/1.15 var(--f-display);letter-spacing:-.015em;text-wrap:balance}
 .price{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:14px 0}.price b{font:700 34px/1 var(--f-display)}.price s{color:#8a91b5}
 .facts{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin:0 0 16px;font-size:16.5px}.facts dt{color:var(--muted)}.facts dd{margin:0;font-weight:800}
