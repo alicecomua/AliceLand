@@ -169,6 +169,11 @@ details.imp[open]>summary::after{content:"–"}
 .ord-who a{font-weight:800;color:var(--brand-dark);text-decoration:none}
 .ord-note{padding:9px 12px;border-radius:12px;background:var(--surface-2,#f6f2fa);color:var(--ink)}
 .ord-act{display:flex;gap:8px;flex-wrap:wrap}.ord-act a.btn{text-decoration:none;color:var(--ink)}.ord-act .btn{min-height:44px;padding:8px 14px;font-size:15px}
+.tag-add{display:flex;gap:8px;margin-top:10px}.tag-add .fi{flex:1;min-width:0}
+.draft-ops{display:flex;gap:8px;flex-wrap:wrap}.draft-ops .btn{flex:1 1 auto;min-height:48px}
+li.has-sel{display:flex;align-items:center;gap:6px}li.has-sel .row{flex:1;min-width:0}
+.sel{display:grid;place-items:center;width:44px;height:44px;flex:none}.sel input{width:24px;height:24px;accent-color:var(--brand)}
+.pill.s-new{background:#e6f7ee;color:#0b6b3a}
 .serp{margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
 .serp b{display:block;color:#1a0dab;font:400 18px/1.3 Arial,sans-serif;overflow-wrap:anywhere}
 .serp i{display:block;color:#0d652d;font:400 13px/1.4 Arial,sans-serif;font-style:normal;overflow-wrap:anywhere}
@@ -261,6 +266,7 @@ details.imp[open]>summary::after{content:"–"}
         <div class="field">
           <span class="label">Хештеги <small>за ними шукають на сайті</small></span>
           <div class="chips" id="chipTags" role="group" aria-label="Хештеги"></div>
+          <div class="tag-add"><input id="newTag" class="fi" maxlength="30" autocomplete="off" placeholder="Новий хештег, наприклад: русалочка" aria-label="Новий хештег"><button type="button" id="newTagBtn" class="btn">Додати</button></div>
         </div>
 
         <label class="field">
@@ -295,6 +301,7 @@ details.imp[open]>summary::after{content:"–"}
           <input id="fLength" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="Наприклад: 62 або 55–60">
           <div class="seg small" id="segLenKind" role="group" aria-label="Що саме виміряно">
             <button type="button" data-v="tag" aria-pressed="true">від бірки до низу</button>
+            <button type="button" data-v="shoulder" aria-pressed="false">від плеча</button>
             <button type="button" data-v="height" aria-pressed="false">висота</button>
             <button type="button" data-v="length" aria-pressed="false">довжина</button>
           </div>
@@ -350,7 +357,14 @@ details.imp[open]>summary::after{content:"–"}
         <button type="button" data-v="sold" aria-pressed="false">Продані</button>
         <button type="button" data-v="hidden" aria-pressed="false">Чернетки</button>
       </div>
-      <button id="bulkPub" class="btn primary block" type="button" hidden style="margin-top:12px"></button>
+      <div id="draftBar" hidden>
+        <p class="hint" id="draftHint" style="margin:12px 0 8px"></p>
+        <div class="draft-ops">
+          <button id="bulkAll" class="btn" type="button">Обрати всі</button>
+          <button id="bulkPub" class="btn primary" type="button"></button>
+          <button id="bulkDel" class="btn danger" type="button"></button>
+        </div>
+      </div>
       <ul class="list" id="list"></ul>
       <p class="empty" id="listEmpty" hidden></p>
     </section>
@@ -411,6 +425,7 @@ details.imp[open]>summary::after{content:"–"}
         <div class="serp" id="seoPreview" aria-label="Як це виглядає в Google"></div>
         <label class="field"><span class="label">Ключові фрази <small>через кому</small></span><input id="seoKeywords" autocomplete="off">
           <span class="hint">Google не читає цей список, але ці слова корисно вживати в назвах і описах костюмів. Вони йдуть у мета-теги для інших систем.</span></label>
+        <button id="seoKwRec" class="btn block" type="button" style="margin:-4px 0 14px">Підставити рекомендовані фрази</button>
         <label class="field"><span class="label">Адреса сайту <small>з https://</small></span><input id="seoUrl" inputmode="url" autocomplete="off" placeholder="https://aliceland.netlify.app">
           <span class="hint">Основна адреса для Google. Якщо підключиш власний домен, впиши його тут.</span></label>
         <label class="field"><span class="label">Google Search Console <small>код підтвердження</small></span><input id="seoGsc" autocomplete="off" placeholder="google-site-verification"></label>
@@ -446,7 +461,7 @@ details.imp[open]>summary::after{content:"–"}
         <p class="hint" style="margin:0 0 6px 32px">Поки вимкнено, система лише повідомляє, що змінилось. Увімкни, коли переконаєшся, що звіти правильні.</p>
         <label class="chk"><input type="checkbox" id="syPrices"> Оновлювати ціни</label>
         <label class="chk"><input type="checkbox" id="sySold"> Знімати проданих і видалених</label>
-        <label class="chk"><input type="checkbox" id="syNew"> Шукати нові товари</label>
+        <label class="chk"><input type="checkbox" id="syNew"> Знаходити нові костюми й додавати їх у чернетки</label>
         <label class="field" style="margin-top:12px"><span class="label">Профіль на Shafa</span><input id="syUrl" autocomplete="off" inputmode="url"></label>
         <button id="sySave" class="btn primary block" type="button">Зберегти</button>
         <button id="syRun" class="btn block" type="button" style="margin-top:8px">Перевірити зараз</button>
@@ -486,7 +501,6 @@ details.imp[open]>summary::after{content:"–"}
 
 <!-- Готові тексти -->
 <dialog id="dlgTexts" class="texts"><div class="sheet" id="textsBody"></div></dialog>
-
 <script>
 (() => {
 'use strict';
@@ -515,7 +529,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 
 const S = {
-  key: '', items: [], counts: {}, nextId: '', lenKind: 'tag', orders: [], ordCounts: { new: 0, work: 0, done: 0, cancel: 0 }, ordFilter: 'new', ordLoaded: false, ordSeen: false, site: null, siteOrigin: '', siteDirty: false, tagCfg: [], tagDraft: [], tagDirty: false, importing: false, apiVersion: 0, sync: null, syncDirty: false, syncBusy: false,
+  key: '', items: [], counts: {}, nextId: '', lenKind: 'tag', sel: new Set(), orders: [], ordCounts: { new: 0, work: 0, done: 0, cancel: 0 }, ordFilter: 'new', ordLoaded: false, ordSeen: false, site: null, siteOrigin: '', siteDirty: false, tagCfg: [], tagDraft: [], tagDirty: false, importing: false, apiVersion: 0, sync: null, syncDirty: false, syncBusy: false,
   photos: [], audience: '', tags: [], cond: 'Дуже хороший', status: 'available',
   editId: null, filter: 'all', busy: false,
   settings: loadSettings()
@@ -757,6 +771,7 @@ function startEdit(item) {
   renderSeg('segAudience', S.audience); renderSeg('segCond', S.cond); renderSeg('segStatus', S.status); renderSeg('segLenKind', S.lenKind);
   refreshSaveLabel();
   switchTab('add');
+  if (!item.images.length && (item.srcPhotos || []).length) pullIntoForm(item);
 }
 function validate() {
   if (!S.photos.length && (S.status === 'available' || S.status === 'reserved')) return 'Додай хоча б одне фото';
@@ -774,7 +789,7 @@ function payload() {
     length: $('fLength').value.trim(), lengthKind: S.lenKind,
     audience: S.audience === 'both' ? ['girls', 'boys'] : (S.audience ? [S.audience] : []),
     tags: S.tags, price: $('fPrice').value, oldPrice: $('fOld').value, status: S.status,
-    images: S.photos.map((p) => p.id)
+    images: S.photos.map((p) => p.id), srcPhotos: []
   };
 }
 async function uploadPhotos() {
@@ -833,12 +848,7 @@ async function refreshList(quiet) {
   catch (e) { if (e.code === 'bad_password') logout(); else if (!quiet) toast(e.message, true); }
 }
 function renderList() {
-  const bp = $('bulkPub');
-  if (bp) {
-    const n = S.items.filter((p) => p.status === 'hidden').length;
-    bp.hidden = !(S.filter === 'hidden' && n > 0);
-    bp.textContent = `Опублікувати всі чернетки (${n})`;
-  }
+  updateDraftBar();
   const total = S.items.length;
   const c = { available: 0, reserved: 0, sold: 0, hidden: 0 };
   S.items.forEach((p) => { c[p.status] = (c[p.status] || 0) + 1; });
@@ -852,11 +862,15 @@ function renderList() {
   $('list').innerHTML = list.map((p) => {
     const img = p.images[0]
       ? `<img class="row-img" src="/img/${p.images[0]}s" alt="" loading="lazy">`
-      : '<span class="row-img" aria-hidden="true">🎭</span>';
-    return `<li><button type="button" class="row" data-id="${esc(p.id)}">${img}` +
+      : (p.srcPhotos && p.srcPhotos[0]
+        ? `<img class="row-img" src="https://image-thumbs.shafastatic.net/${esc(p.srcPhotos[0])}_310_430" alt="" loading="lazy" referrerpolicy="no-referrer">`
+        : '<span class="row-img" aria-hidden="true">🎭</span>');
+    const pick = p.status === 'hidden'
+      ? `<label class="sel"><input type="checkbox" data-sel="${esc(p.id)}" aria-label="Обрати ${esc(p.id)}"${S.sel.has(p.id) ? ' checked' : ''}></label>` : '';
+    return `<li${pick ? ' class="has-sel"' : ''}>${pick}<button type="button" class="row" data-id="${esc(p.id)}">${img}` +
       `<span class="row-main"><span class="row-name">${esc(p.name)}</span>` +
-      `<span class="row-meta">${esc(p.id)} · ${esc(p.size)} · ${p.price} грн</span>` +
-      `<span class="pill s-${p.status}">${STATUS_LABEL[p.status]}</span></span></button></li>`;
+      `<span class="row-meta">${esc(p.id)} · ${esc(p.size)} · ${p.price ? p.price + ' грн' : 'без ціни'}</span>` +
+      `<span class="pill s-${p.status}">${STATUS_LABEL[p.status]}</span>${p.auto && p.status === 'hidden' ? ' <span class="pill s-new">нове з Shafa</span>' : ''}</span></button></li>`;
   }).join('');
   const empty = $('listEmpty');
   empty.hidden = list.length > 0;
@@ -927,7 +941,7 @@ function hashtags(p) {
 }
 const yearsWord = (n) => (n % 10 === 1 && n % 100 !== 11 ? 'рік' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'роки' : 'років'));
 const ageText = (p) => (p.ageFrom == null ? '' : (p.ageTo === p.ageFrom ? `${p.ageFrom} ${yearsWord(p.ageFrom)}` : `${p.ageFrom}–${p.ageTo} ${yearsWord(p.ageTo)}`));
-const lengthLabel = (p) => (p.lengthKind === 'tag' ? 'Довжина від бірки до низу' : (p.lengthKind === 'height' ? 'Висота' : 'Довжина'));
+const lengthLabel = (p) => (p.lengthKind === 'tag' ? 'Довжина від бірки до низу' : (p.lengthKind === 'shoulder' ? 'Довжина від плеча' : (p.lengthKind === 'height' ? 'Висота' : 'Довжина')));
 const condText = (p) => (p.condition === 'Новий' ? 'новий' : `${p.condition.toLowerCase()}, вживаний`);
 function textInstagram(p) {
   const site = String((S.site && S.site.seo.siteUrl) || S.settings.siteUrl || '').replace(/\/+$/, '');
@@ -1058,9 +1072,7 @@ function startImportHtml() {
   const html = $('impHtml').value;
   if (html.trim().length < 500) { toast('Встав весь код сторінки (Ctrl+A, Ctrl+C)', true); return; }
   runImport([{ url: '', html }]);
-}
-
-/* ---------- Хештеги й колекції ---------- */
+}/* ---------- Хештеги й колекції ---------- */
 function renderTagEditor() {
   const list = $('tagList');
   if (!list) return;
@@ -1095,37 +1107,117 @@ async function saveTags() {
   } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
 }
 
-/* ---------- Масова публікація чернеток ---------- */
+/* ---------- Чернетки: вибір, фото з Shafa, додавання на сайт, видалення ---------- */
+const draftsAll = () => S.items.filter((p) => p.status === 'hidden');
+const draftsPicked = () => draftsAll().filter((p) => S.sel.has(p.id));
+function updateDraftBar() {
+  const bar = $('draftBar');
+  if (!bar) return;
+  const all = draftsAll();
+  for (const id of [...S.sel]) if (!all.some((p) => p.id === id)) S.sel.delete(id);
+  bar.hidden = !(S.filter === 'hidden' && all.length > 0);
+  const n = S.sel.size, fresh = all.filter((p) => p.auto).length;
+  $('draftHint').textContent = (fresh ? `Нових із Shafa: ${fresh}. ` : '') + (n ? `Обрано: ${n}.` : 'Познач галочками, які костюми додати на сайт, а які видалити.');
+  $('bulkAll').textContent = n && n === all.length ? 'Зняти вибір' : 'Обрати всі';
+  $('bulkPub').textContent = n ? `Додати на сайт (${n})` : `Додати всі готові (${all.length})`;
+  $('bulkDel').textContent = n ? `Видалити (${n})` : 'Видалити';
+  $('bulkDel').disabled = !n;
+}
+async function pullShafaPhotos(p) {            // фото з Shafa → стиснути в браузері → зберегти на сайті
+  const ids = [];
+  for (const sid of p.srcPhotos || []) {
+    try {
+      const ph = await processPhoto(await apiBlob('/api/admin/import-img?id=' + encodeURIComponent(sid)));
+      URL.revokeObjectURL(ph.url);
+      await putPhoto(ph);
+      ids.push(ph.id);
+    } catch (e) { /* це фото пропускаємо */ }
+  }
+  if (!ids.length) throw new Error('Фото з Shafa не завантажились: ' + p.id);
+  return ids;
+}
 async function publishDrafts() {
-  const drafts = S.items.filter((p) => p.status === 'hidden');
-  const ready = drafts.filter((p) => p.price >= 1 && p.size !== 'уточнити' && p.images.length);
-  if (!ready.length) { toast('Немає чернеток, готових до публікації: заповни ціну, розмір і фото', true, 5000); return; }
-  const skipped = drafts.length - ready.length;
-  if (!confirm(`Опублікувати на сайті ${ready.length} чернеток?` + (skipped ? ` Ще ${skipped} пропущу: у них немає ціни, розміру чи фото.` : ''))) return;
+  const picked = draftsPicked();
+  const pool = picked.length ? picked : draftsAll();
+  const ready = pool.filter((p) => p.price >= 1 && p.size !== 'уточнити' && (p.images.length || (p.srcPhotos || []).length));
+  if (!ready.length) { toast('Немає чернеток, готових до публікації: заповни ціну й розмір', true, 5000); return; }
+  const skipped = pool.length - ready.length;
+  if (!confirm(`Додати на сайт ${ready.length} чернеток?` + (skipped ? ` Ще ${skipped} пропущу: у них немає ціни чи розміру.` : ''))) return;
   const btn = $('bulkPub');
   btn.disabled = true;
   let done = 0;
   try {
     for (const p of ready) {
-      btn.textContent = `Публікую ${done + 1} з ${ready.length}…`;
-      const res = await api('PATCH', `/api/admin/product/${p.id}`, { status: 'available' });
+      btn.textContent = `Додаю ${done + 1} з ${ready.length}…`;
+      const images = p.images.length ? p.images : await pullShafaPhotos(p);
+      const res = await api('PATCH', `/api/admin/product/${p.id}`, { status: 'available', images, srcPhotos: [] });
       const i = S.items.findIndex((x) => x.id === p.id);
       if (i >= 0) S.items[i] = res.item;
+      S.sel.delete(p.id);
       done++;
     }
-    toast(`Опубліковано: ${done}`);
+    toast(`Додано на сайт: ${done}`);
   } catch (e) {
     if (e.code === 'bad_password') { logout(); return; }
-    toast(`${e.message} (опубліковано ${done})`, true, 5000);
+    toast(`${e.message} (додано ${done})`, true, 6000);
   } finally {
     btn.disabled = false;
     refreshList(true); renderList();
   }
 }
+async function deleteDrafts() {
+  const picked = draftsPicked();
+  if (!picked.length) return;
+  if (!confirm(`Видалити ${picked.length} чернеток? Автоперевірка більше не пропонуватиме їх із Shafa.`)) return;
+  $('bulkDel').disabled = true;
+  let done = 0;
+  try {
+    for (const p of picked) {
+      await api('DELETE', `/api/admin/product/${p.id}`);
+      S.items = S.items.filter((x) => x.id !== p.id);
+      S.sel.delete(p.id);
+      done++;
+    }
+    toast(`Видалено: ${done}`);
+  } catch (e) {
+    if (e.code === 'bad_password') { logout(); return; }
+    toast(`${e.message} (видалено ${done})`, true, 5000);
+  } finally {
+    refreshList(true); renderList();
+  }
+}
+async function pullIntoForm(item) {            // відкрили чернетку без фото на сайті: підтягуємо її фото з Shafa у форму
+  setBusy(true, 'Тягну фото з Shafa…');
+  try {
+    for (const sid of item.srcPhotos) {
+      if (S.editId !== item.id) break;
+      try { S.photos.push(await processPhoto(await apiBlob('/api/admin/import-img?id=' + encodeURIComponent(sid)))); renderPhotos(); } catch (e) { /* пропускаємо */ }
+    }
+  } finally { setBusy(false); }
+}
 
+/* ---------- Новий хештег прямо у формі ---------- */
+async function addTagInline() {
+  const label = $('newTag').value.replace(/^#+\s*/, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (label.length < 2) { toast('Впиши назву хештега', true); return; }
+  const have = S.tagCfg.find((t) => t.label === label);
+  if (have) { if (!S.tags.includes(have.key)) S.tags.push(have.key); $('newTag').value = ''; renderTags(); return; }
+  const list = S.tagCfg.map((t) => ({ key: t.key, label: t.label, title: t.title || '', collection: !!t.collection }));
+  list.push({ key: '', label, title: '', collection: false });
+  try {
+    const res = await api('PUT', '/api/admin/tags', { tags: list });
+    S.tagCfg = res.tags; S.tagDraft = JSON.parse(JSON.stringify(res.tags)); S.tagDirty = false;
+    const made = S.tagCfg.find((t) => t.label === label);
+    if (made) S.tags.push(made.key);
+    $('newTag').value = '';
+    renderTags(); renderTagEditor();
+    toast('Хештег додано');
+  } catch (e) { if (e.code === 'bad_password') logout(); else toast(e.message, true); }
+}
 
 
 /* ---------- Контакти й SEO ---------- */
+const RECOMMENDED_KEYWORDS = 'карнавальні костюми, дитячі карнавальні костюми, костюми б/у, вживані костюми, костюм на хелловін, костюм гарбуза, костюм скелета, костюм відьмочки, новорічні костюми, костюм сніговика, костюм принцеси, костюм феї, костюм на ранок у садочку, костюми Хмельницький, купити костюм Хмельницький';
 const SITE_FIELDS = { stPhone: ['contacts', 'phone'], stPhone2: ['contacts', 'phone2'], stViber: ['contacts', 'viber'], stTelegram: ['contacts', 'telegram'], stInstagram: ['contacts', 'instagram'],
   stShafa: ['contacts', 'shafa'], stCity: ['contacts', 'city'], stAddress: ['contacts', 'address'], stHours: ['contacts', 'hours'],
   seoTitle: ['seo', 'title'], seoDesc: ['seo', 'description'], seoKeywords: ['seo', 'keywords'], seoUrl: ['seo', 'siteUrl'], seoGsc: ['seo', 'gsc'], seoGa: ['seo', 'gaId'] };
@@ -1270,6 +1362,7 @@ function renderSync() {
     h += lines.length ? `<ul class="sy-list">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>` : '<p class="hint">Змін немає.</p>';
     for (const n of r.notes) h += `<p class="sy-bad">⚠️ ${esc(n)}</p>`;
     if (!r.applied && r.changes.length) h += '<p class="hint">Зміни на сайті не застосовано: увімкнено режим «лише повідомляти».</p>';
+    if (r.imported && r.imported.length) h += `<p>📝 Нових костюмів у чернетках: <b>${r.imported.length}</b>. Відкрий Каталог → Чернетки</p>`;
     if (r.newLinks.length) h += `<p>🆕 Нових товарів на Shafa: <b>${r.newLinks.length}</b> <button class="link" id="syImportNew" type="button">Імпортувати нові</button></p>`;
   }
   box.innerHTML = h;
@@ -1427,6 +1520,11 @@ function init() {
   $('impHtmlGo').addEventListener('click', startImportHtml);
   $('impOpen').addEventListener('click', () => { S.filter = 'hidden'; renderSeg('segFilter', 'hidden'); renderList(); switchTab('list'); });
   $('bulkPub').addEventListener('click', publishDrafts);
+  $('bulkDel').addEventListener('click', deleteDrafts);
+  $('bulkAll').addEventListener('click', () => { const all = draftsAll(); if (S.sel.size === all.length) S.sel.clear(); else all.forEach((p) => S.sel.add(p.id)); renderList(); });
+  $('list').addEventListener('change', (e) => { const c = e.target.closest('[data-sel]'); if (!c) return; if (c.checked) S.sel.add(c.dataset.sel); else S.sel.delete(c.dataset.sel); updateDraftBar(); });
+  $('newTagBtn').addEventListener('click', addTagInline);
+  $('newTag').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTagInline(); } });
   $('stSave').addEventListener('click', saveSiteSettings);
   $('trSave').addEventListener('click', saveSiteSettings);
   $('trackCard').addEventListener('input', () => { S.siteDirty = true; });
@@ -1439,6 +1537,7 @@ function init() {
   });
   setInterval(() => { if (S.key && !$('appView').hidden && !document.hidden) refreshOrders(true); }, 60000);
   $('seoSave').addEventListener('click', saveSiteSettings);
+  $('seoKwRec').addEventListener('click', () => { $('seoKeywords').value = RECOMMENDED_KEYWORDS; S.siteDirty = true; renderSeoPreview(); toast('Фрази підставлено, натисни «Зберегти SEO»'); });
   $('contactCard').addEventListener('input', () => { S.siteDirty = true; });
   $('seoCard').addEventListener('input', () => { S.siteDirty = true; renderSeoPreview(); });
   $('sySave').addEventListener('click', saveSync);
