@@ -436,3 +436,614 @@ function classifyItem(html, finalUrl, sid) {
 }
 
 const kyiv = (ms) => new Date(ms).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+export function createSync({
+  getStore: makeStore = getStore, env = defaultEnv,
+  shafaFetch = (...a) => globalThis.fetch(...a), tgFetch = (...a) => globalThis.fetch(...a),
+  now = () => Date.now(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
+} = {}) {
+  const db = () => makeStore({ name: "aliceland", consistency: "strong" });
+  const getJSON = (k) => db().get(k, { type: "json" });
+  const loadCfg = async () => sanitizeSyncConfig((await getJSON("syncconfig")) || {});
+  const loadState = async () => (await getJSON("syncstate")) || { cycle: null, last: null };
+  const saveState = (st) => db().setJSON("syncstate", st);
+  const loadProducts = async () => { const d = await getJSON("products"); return d && Array.isArray(d.items) ? d : { items: [], next: 1 }; };
+
+  async function getHtml(url) {
+    try {
+      const res = await shafaFetch(url, { headers: { "user-agent": UA, "accept-language": "uk,en;q=0.5", accept: "text/html" }, signal: AbortSignal.timeout(15000) });
+      if (!res.ok) return { status: res.status };
+      return { status: 200, html: await res.text(), url: res.url || url };
+    } catch { return { status: 0 }; }
+  }
+
+  async function notify(text) {
+    const token = env("TG_BOT_TOKEN"), chat = env("TG_CHAT_ID");
+    if (!token || !chat) return false;
+    try {
+      const r = await tgFetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chat, text: text.slice(0, 3500) }) });
+      return r.ok;
+    } catch { return false; }
+  }
+
+  async function phaseList(c, cfg, st, deadline) {
+    while (c.page <= 40 && now() < deadline && !c.listDone) {
+      const url = c.page === 1 ? cfg.profileUrl : `${cfg.profileUrl}?page=${c.page}`;
+      const r = await getHtml(url);
+      if (r.status !== 200) {
+        if (c.page === 1) throw userErr(`Не вдалося відкрити профіль на Shafa (${r.status ? "код " + r.status : "немає відповіді"})`);
+        c.listDone = true; break;
+      }
+      let added = 0;
+      for (const [id, u] of extractItemLinks(r.html)) if (!(id in c.found)) { c.found[id] = u; added++; }
+      if (c.page === 1 && !added) throw userErr("На сторінці профілю не знайдено товарів. Можливо, Shafa змінила верстку або віддала порожню сторінку");
+      if (!added) c.listDone = true; else c.page++;
+      await saveState(st);
+      await sleep(600);
+    }
+    if (c.page > 40) c.listDone = true;
+    if (!c.listDone) return;                                          // продовжимо наступним запуском
+    const { items } = await loadProducts();
+    c.queue = items.filter((p) => p.src && (p.status === "available" || p.status === "reserved")).map((p) => p.id);
+    c.phase = "check"; c.idx = 0;
+  }
+
+  async function phaseCheck(c, cfg, st, deadline) {
+    const data = await loadProducts();
+    while (c.idx < c.queue.length && now() < deadline) {
+      const p = data.items.find((x) => x.id === c.queue[c.idx]);
+      c.idx++;
+      if (!p) continue;
+      const sid = p.src.slice(6);
+      const r = await getHtml(c.found[sid] || p.srcUrl || `https://shafa.ua/uk/item/${sid}`);
+      c.checked++;
+      if (r.status === 404 || r.status === 410) { c.consecutiveErrors = 0; c.changes.push({ id: p.id, kind: "sold", why: "сторінки на Shafa більше немає" }); }
+      else if (r.status !== 200) {
+        c.errors++; c.consecutiveErrors++;
+        if (c.consecutiveErrors >= 6) throw userErr("Shafa не віддає сторінки товарів (забагато збоїв поспіль)");
+      } else {
+        c.consecutiveErrors = 0;
+        const cl = classifyItem(r.html, r.url, sid);
+        if (cl.kind === "unparsed") c.errors++;
+        else if (cl.kind === "gone") c.changes.push({ id: p.id, kind: "sold", why: "адреса на Shafa веде на інший товар" });
+        else if (cl.kind === "sold") c.changes.push({ id: p.id, kind: "sold", why: "позначено проданим на Shafa" });
+        else if (cl.price) {
+          if (!p.srcPrice) c.baselines.push({ id: p.id, price: cl.price });
+          else if (cl.price !== p.srcPrice) c.changes.push({ id: p.id, kind: "price", from: p.srcPrice, to: cl.price, siteDiffers: p.price !== p.srcPrice });
+        }
+      }
+      if (c.idx % 5 === 0) await saveState(st);
+      await sleep(500);
+    }
+    if (c.idx >= c.queue.length) c.phase = cfg.findNew ? "import" : "finish";
+  }
+
+  // Нові костюми з профілю Shafa потрапляють у чернетки самі; фото підтягнеться, коли власниця додасть чернетку на сайт
+  async function phaseImport(c, cfg, st, deadline) {
+    if (!c.iq) {
+      const data = await loadProducts();
+      const known = new Set(data.items.map((p) => (p.src || "").slice(6)).filter(Boolean));
+      const ignored = new Set((await getJSON("ignored")) || []);
+      c.iq = Object.entries(c.found).filter(([id]) => !known.has(id) && !ignored.has(id)).map(([, u]) => u).slice(0, 40);
+      c.ii = 0; c.imported = []; c.skipped = 0; c.ierr = 0;
+    }
+    if (c.ii < c.iq.length && now() < deadline) {
+      const cfgTags = await getJSON("config");
+      const tags = cfgTags && Array.isArray(cfgTags.tags) ? sanitizeTags(cfgTags.tags) : DEFAULT_TAGS;
+      while (c.ii < c.iq.length && now() < deadline) {
+        const r = await getHtml(c.iq[c.ii++]);
+        await sleep(500);
+        if (r.status !== 200) { c.ierr++; continue; }
+        const d = parseShafaHtml(r.html, tags, r.url);
+        if (!d.name || !d.src || !isCarnival(r.html) || detectSold(r.html)) { c.skipped++; continue; }
+        const data = await loadProducts();                                 // свіжий каталог: не затираємо правки власниці
+        if (data.items.some((p) => p.src === d.src)) continue;
+        const parsed = normalize({
+          name: d.name, audience: d.audience, tags: d.tags, size: d.size, condition: d.condition, price: d.price || 0, desc: d.desc, status: "hidden", images: [],
+          src: d.src, srcUrl: d.url, srcPrice: d.price || undefined, srcPhotos: d.photos,
+          ageFrom: d.ageFrom ?? undefined, ageTo: d.ageTo ?? undefined, length: d.length || undefined, lengthKind: d.lengthKind || undefined,
+        }, tags.map((t) => t.key));
+        if (parsed.error) { c.skipped++; continue; }
+        const id = formatId(Math.max(Number(data.next) || 1, data.items.reduce((m, p) => Math.max(m, artNumber(p.id)), 0) + 1));
+        const stamp = new Date(now()).toISOString();
+        data.items.unshift({ ...parsed.value, id, createdAt: stamp, updatedAt: stamp, auto: true });
+        data.next = artNumber(id) + 1;
+        await db().setJSON("products", data);
+        c.imported.push({ id, name: d.name });
+      }
+    }
+    if (c.ii >= c.iq.length) c.phase = "finish";
+  }
+
+  async function finish(c, cfg, st) {
+    const data = await loadProducts();
+    const byId = new Map(data.items.map((p) => [p.id, p]));
+    const notes = [];
+    const soldCh = c.changes.filter((x) => x.kind === "sold");
+    const soldBlocked = soldCh.length > Math.max(3, Math.ceil(0.25 * c.checked));
+    if (soldBlocked) notes.push(`Забагато проданих за раз (${soldCh.length} з ${c.checked}). Схоже на збій, тому нічого не знято`);
+    const tooManyErrors = c.checked >= 4 && c.errors / c.checked > 0.5;
+    if (tooManyErrors) notes.push("Забагато помилок читання сторінок, зміни не застосовано");
+    let applied = 0, touched = false;
+    for (const b of c.baselines) { const p = byId.get(b.id); if (p && !p.srcPrice) { p.srcPrice = b.price; touched = true; } }
+    if (cfg.apply && !tooManyErrors) {
+      const stamp = new Date(now()).toISOString();
+      for (const ch of c.changes) {
+        const p = byId.get(ch.id);
+        if (!p) continue;
+        if (ch.kind === "price" && cfg.prices) {
+          const ratio = ch.to / ch.from;
+          if (ratio < 0.3 || ratio > 3) { ch.skipped = "різниця надто велика"; continue; }
+          if (ch.siteDiffers) { ch.skipped = "на сайті ціна відрізняється від Shafa, не чіпаю"; p.srcPrice = ch.to; touched = true; continue; }
+          p.price = ch.to; p.srcPrice = ch.to; p.updatedAt = stamp;
+          if (p.oldPrice && p.oldPrice <= p.price) p.oldPrice = null;
+          ch.applied = true; applied++; touched = true;
+        } else if (ch.kind === "sold" && cfg.sold && !soldBlocked && (p.status === "available" || p.status === "reserved")) {
+          p.status = "sold"; p.soldAt = stamp; p.updatedAt = stamp; ch.applied = true; applied++; touched = true;
+        }
+      }
+    }
+    if (touched) await db().setJSON("products", data);
+    const known = new Set(data.items.map((p) => (p.src || "").slice(6)).filter(Boolean));
+    const newLinks = cfg.findNew && !c.iq ? Object.entries(c.found).filter(([id]) => !known.has(id)).map(([, u]) => u).slice(0, 60) : [];
+    const report = {
+      at: now(), startedAt: c.startedAt, ok: true, listed: Object.keys(c.found).length, checked: c.checked, errors: c.errors,
+      applied, mode: cfg.apply ? "apply" : "report", notes, newLinks,
+      imported: c.imported || [], skippedNew: c.skipped || 0, importErrors: c.ierr || 0,
+      changes: c.changes.map((x) => ({ ...x, name: byId.get(x.id)?.name || "" })).slice(0, 100),
+    };
+    report.sig = JSON.stringify([report.changes.map((x) => [x.id, x.kind, x.to ?? 0, x.applied ? 1 : 0]), newLinks.length, notes.length, applied, report.mode]);
+    const same = st.last?.sig === report.sig;
+    st.last = report; st.cycle = null;
+    await saveState(st);
+    if (((report.changes.length || newLinks.length || notes.length) && !same) || report.imported.length) await notify(buildMessage(report));
+    return report;
+  }
+
+  function buildMessage(r) {
+    const price = r.changes.filter((x) => x.kind === "price"), sold = r.changes.filter((x) => x.kind === "sold");
+    const L = ["🔄 Перевірка Shafa завершена"];
+    if (price.length) L.push(`💰 Змінилась ціна: ${price.length}` + price.slice(0, 5).map((x) => `\n  ${x.name || x.id}: ${x.from} → ${x.to} грн${x.applied ? " (оновлено)" : x.skipped ? ` (${x.skipped})` : ""}`).join(""));
+    if (sold.length) L.push(`🚫 Продано або знято на Shafa: ${sold.length}` + sold.slice(0, 5).map((x) => `\n  ${x.name || x.id}${x.applied ? " (знято з сайту)" : ""}`).join(""));
+    if (r.newLinks.length) L.push(`🆕 Нових товарів на Shafa: ${r.newLinks.length}. Адмінка → Додати → Імпорт`);
+    if (r.imported?.length) L.push(`📝 Нових костюмів у чернетках: ${r.imported.length}` + r.imported.slice(0, 5).map((x) => `\n  ${x.name}`).join("") + "\nАдмінка → Каталог → Чернетки: познач, які додати на сайт");
+    for (const n of r.notes) L.push("⚠️ " + n);
+    L.push(r.mode === "apply" ? "Зміни застосовано автоматично." : "Режим «лише повідомляти»: на сайті нічого не змінено.");
+    return L.join("\n");
+  }
+
+  async function abort(st, message) {
+    const at = now();
+    st.last = { at, startedAt: st.cycle?.startedAt || at, ok: false, error: message, listed: 0, checked: st.cycle?.checked || 0, errors: st.cycle?.errors || 0, applied: 0, mode: "report", notes: [], newLinks: [], changes: [], sig: "err:" + message };
+    const same = st.last.sig === (st.prevSig || "");
+    st.prevSig = st.last.sig;
+    st.cycle = null;
+    await saveState(st);
+    if (!same) await notify("⚠️ Перевірка Shafa не вдалася: " + message);
+  }
+
+  // Один запуск: працює, доки не вийде бюджет часу, і лишає стан для продовження
+  async function run({ budgetMs = 24000, force = false } = {}) {
+    const cfg = await loadCfg();
+    if (!cfg.enabled && !force) return { skipped: "disabled" };
+    const st = await loadState();
+    if (!st.cycle) {
+      if (!force && st.last && now() - st.last.at < SYNC_MIN_GAP_MS) return { skipped: "recent" };
+      st.cycle = { startedAt: now(), phase: "list", page: 1, found: {}, listDone: false, queue: [], idx: 0, checked: 0, errors: 0, consecutiveErrors: 0, changes: [], baselines: [], lockUntil: 0 };
+    }
+    const c = st.cycle;
+    if (c.lockUntil > now()) return { skipped: "busy" };
+    c.lockUntil = now() + budgetMs + 20000;
+    await saveState(st);
+    const deadline = now() + budgetMs;
+    try {
+      if (c.phase === "list") await phaseList(c, cfg, st, deadline);
+      if (c.phase === "check") await phaseCheck(c, cfg, st, deadline);
+      if (c.phase === "import") await phaseImport(c, cfg, st, deadline);
+      if (c.phase === "finish") { await finish(c, cfg, st); return { done: true, report: st.last }; }
+      c.lockUntil = 0;
+      await saveState(st);
+      return { done: false, progress: progressOf(c) };
+    } catch (e) {
+      await abort(st, e.userMessage || "Збій перевірки: " + (e.message || e));
+      return { done: true, report: st.last };
+    }
+  }
+
+  const progressOf = (c) => ({ phase: c.phase, page: c.page, found: Object.keys(c.found).length, idx: c.idx, total: c.queue.length, startedAt: c.startedAt });
+  async function status() {
+    const [config, st] = await Promise.all([loadCfg(), loadState()]);
+    return { config, running: !!st.cycle, progress: st.cycle ? progressOf(st.cycle) : null, last: st.last || null };
+  }
+  const saveConfig = (cfg) => db().setJSON("syncconfig", cfg);
+  return { run, status, saveConfig, loadCfg };
+}
+
+export const sync = createSync();
+export const syncKey = () => createHash("sha256").update("sync:" + String(defaultEnv("ADMIN_PASSWORD") || "")).digest("hex");
+
+
+export function createHandler({
+  getStore: makeStore = getStore, env = defaultEnv,
+  fetchImpl = (...a) => globalThis.fetch(...a), selfFetch = (...a) => globalThis.fetch(...a), tgFetch = (...a) => globalThis.fetch(...a),
+  now = () => Date.now(), sleep: sleepImpl = (ms) => new Promise((r) => setTimeout(r, ms)),
+} = {}) {
+  const syncEngine = createSync({ getStore: makeStore, env, shafaFetch: fetchImpl, tgFetch, now, sleep: sleepImpl });
+  const keyForSync = () => createHash("sha256").update("sync:" + String(env("ADMIN_PASSWORD") || "")).digest("hex");
+  // Каталог читаємо з "сильною" узгодженістю, щоб після збереження одразу бачити зміни.
+  const db = () => makeStore({ name: "aliceland", consistency: "strong" });
+  const img = () => makeStore({ name: "aliceland-img" });
+
+  async function load() {
+    const data = await db().get("products", { type: "json" });
+    if (data && Array.isArray(data.items)) return data;
+    return { items: [], next: 1 };
+  }
+
+  let pubCache = null;                      // готовий JSON каталогу для сайту: не розбираємо й не збираємо 500 лотів на кожного відвідувача
+  const invalidate = () => { pubCache = null; };
+  const save = (data) => { invalidate(); return db().setJSON("products", data); };
+
+  async function loadTags() {
+    const cfg = await db().get("config", { type: "json" });
+    return cfg && Array.isArray(cfg.tags) ? sanitizeTags(cfg.tags) : DEFAULT_TAGS;
+  }
+  const ordersDb = () => makeStore({ name: "aliceland-orders", consistency: "strong" });
+  const limiter = createLimiter(db, now);
+  async function notifyTelegram(text) {
+    const token = env("TG_BOT_TOKEN"), chat = env("TG_CHAT_ID");
+    if (!token || !chat) return false;
+    try {
+      const r = await tgFetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true }), signal: AbortSignal.timeout(6000) });
+      return r.ok;
+    } catch { return false; }
+  }
+  async function loadOrders(limit) {
+    const st = ordersDb(), keys = [];
+    for (const prefix of orderPrefixes(now())) {
+      const r = st.list({ prefix, paginate: true });
+      if (r && typeof r[Symbol.asyncIterator] === "function") { for await (const page of r) for (const b of page.blobs) keys.push(b.key); }
+      else { const page = await r; for (const b of (page && page.blobs) || []) keys.push(b.key); }
+    }
+    keys.sort().reverse();
+    return (await Promise.all(keys.slice(0, limit).map((k) => st.get(k, { type: "json" })))).filter(Boolean);
+  }
+  async function loadSite() {
+    const raw = await db().get("site", { type: "json" });
+    const s = raw ? sanitizeSite(raw) : null;
+    return s && s.value ? s.value : structuredClone(DEFAULT_SITE);
+  }
+  const pubTags = (tags) => tags.map(({ key, label, title, collection }) => ({ key, label, title, collection }));
+
+  // Сторінку товару Shafa тягнемо лише з shafa.ua і лише за посиланням, яке вставила власниця
+  async function fetchShafaPage(raw) {
+    let u;
+    try { u = new URL(String(raw || "").trim()); } catch { return { status: 400, error: { error: "Це не схоже на посилання" } }; }
+    if (u.protocol !== "https:" || !/^(www\.)?shafa\.ua$/i.test(u.hostname)) return { status: 400, error: { error: "Потрібне посилання на товар із shafa.ua" } };
+    if (!/\d{5,12}-[^/]*\/?$/.test(u.pathname)) return { status: 400, error: { error: "Це не сторінка товару. Посилання має бути на кшталт shafa.ua/uk/item/…" } };
+    let res;
+    try {
+      res = await fetchImpl(u.href, { headers: { "user-agent": UA, "accept-language": "uk,en;q=0.5", accept: "text/html" }, signal: AbortSignal.timeout(15000) });
+    } catch {
+      return { status: 504, error: { error: "Shafa не відповіла. Спробуй за хвилину", code: "timeout" } };
+    }
+    if (res.status === 404) return { status: 404, error: { error: "Сторінку не знайдено на Shafa. Товар могли видалити", code: "notfound" } };
+    if (!res.ok) return { status: 502, error: { error: `Shafa не віддала сторінку серверу (код ${res.status}). Відкрий товар на Shafa, натисни Ctrl+U, скопіюй весь код і встав у поле нижче`, code: "blocked" } };
+    let host = "";
+    try { host = new URL(res.url || u.href).hostname; } catch { /* лишаємо порожнім */ }
+    if (!/(^|\.)shafa\.ua$/i.test(host)) return { status: 502, error: { error: "Shafa перенаправила на іншу адресу", code: "redirect" } };
+    const html = await res.text();
+    if (html.length > 3_000_000) return { status: 413, error: { error: "Сторінка завелика" } };
+    return { html, url: res.url || u.href };
+  }
+
+  function nextId(data) {
+    const maxUsed = data.items.reduce((m, p) => Math.max(m, artNumber(p.id)), 0);
+    return formatId(Math.max(Number(data.next) || 1, maxUsed + 1));
+  }
+
+  async function ignoreSrc(src) {
+    const sid = String(src).slice(6);
+    const cur = (await db().get("ignored", { type: "json" })) || [];
+    if (!cur.includes(sid)) { cur.push(sid); await db().setJSON("ignored", cur.slice(-3000)); }
+  }
+
+  async function firstMissingImage(ids) {
+    for (let i = 0; i < ids.length; i++) {
+      const meta = await img().getMetadata(ids[i]);
+      if (!meta) return i;
+    }
+    return -1;
+  }
+
+  async function removeImages(ids) {
+    await Promise.allSettled(ids.flatMap((id) => [img().delete(id), img().delete(id + "s")]));
+  }
+
+  function authorize(req) {
+    const expected = env("ADMIN_PASSWORD");
+    if (!expected) return "not-configured";
+    // Браузер надсилає пароль закодованим: у заголовках не можна кирилицю й емодзі
+    let given = req.headers.get("x-admin-key") || "";
+    try { given = decodeURIComponent(given); } catch { /* лишаємо як є */ }
+    const a = createHash("sha256").update(given).digest();
+    const b = createHash("sha256").update(String(expected)).digest();
+    return timingSafeEqual(a, b) ? "ok" : "bad";
+  }
+
+  const counts = (items) =>
+    STATUSES.reduce((acc, s) => ({ ...acc, [s]: items.filter((p) => p.status === s).length }), {});
+
+  async function readBody(req) {
+    try {
+      const body = await req.json();
+      return body && typeof body === "object" ? body : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function route(req) {
+    const url = new URL(req.url);
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    const method = req.method.toUpperCase();
+
+    // ---------- Публічне ----------
+    if (method === "GET" && path === "/api/site") return json(deriveSite(await loadSite()), 200, PUBLIC_CACHE(60, 300));
+
+    if (method === "GET" && path === "/api/products") {
+      const t = now();
+      if (!pubCache || t - pubCache.at > 5000) {
+        const data = await load();
+        const items = data.items.filter((p) => p.status === "available" || p.status === "reserved").map(toPublic);
+        pubCache = { at: t, body: JSON.stringify({ items, total: items.length, tags: pubTags(await loadTags()) }) };
+      }
+      return new Response(pubCache.body, { status: 200, headers: { "content-type": "application/json; charset=utf-8", ...PUBLIC_CACHE(30, 120) } });
+    }
+
+    if (method === "POST" && path === "/api/order") {
+      const body = await readBody(req);
+      const ip = clientIp(req);
+      if (!(await limiter.hit("order", ip, ORDER_LIMIT)).ok) return json({ error: "Забагато спроб поспіль. Зателефонуй нам, будь ласка", code: "rate" }, 429);
+      const pid = String(body?.productId || "").toUpperCase();
+      const product = ART_ID.test(pid) ? (await load()).items.find((p) => p.id === pid) || null : null;
+      const v = validateOrder(body, product);
+      if (v.silent) return json({ ok: true });
+      if (v.error) return json({ error: v.error }, v.status);
+      const t = now();
+      const key = newOrderKey(t, Math.random());
+      const rec = { key, number: orderNumber(key), createdAt: new Date(t).toISOString(), status: "new", ...v.order, ipHash: ipKey(ip) };
+      await ordersDb().setJSON(key, rec);
+      await notifyTelegram(telegramText(rec, (await loadSite()).seo.siteUrl || url.origin));    // збій Telegram не втрачає замовлення
+      return json({ ok: true, number: rec.number });
+    }
+
+    const imgMatch = path.match(/^\/img\/([a-f0-9]{16}s?)$/);
+    if ((method === "GET" || method === "HEAD") && imgMatch) {
+      const bytes = await img().get(imgMatch[1], { type: "arrayBuffer" });
+      if (!bytes) return new Response("Не знайдено", { status: 404, headers: { "cache-control": "no-store" } });
+      return new Response(method === "HEAD" ? null : bytes, {
+        headers: {
+          "content-type": "image/jpeg",
+          "cache-control": "public, max-age=31536000, immutable",
+          "netlify-cdn-cache-control": "public, max-age=31536000, immutable, durable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+
+    // ---------- Адмінка ----------
+    if (path.startsWith("/api/admin/")) {
+      const ip = clientIp(req);
+      const lockState = await limiter.state("admin", ip);
+      if (lockState && now() - lockState.first <= ADMIN_LOCK.windowMs && lockState.count >= ADMIN_LOCK.max) {
+        return json({ error: "Забагато невдалих спроб. Спробуй за 15 хвилин", code: "locked" }, 429);
+      }
+      const auth = authorize(req);
+      if (auth === "not-configured") {
+        return json({ error: "У Netlify ще не задано змінну ADMIN_PASSWORD", code: "no_password" }, 503);
+      }
+      if (auth === "bad") {
+        await limiter.hit("admin", ip, ADMIN_LOCK);
+        await sleepImpl(800); // гальмуємо підбір пароля
+        return json({ error: "Невірний пароль", code: "bad_password" }, 401);
+      }
+
+      if (lockState) await limiter.clear("admin", ip);       // правильний пароль знімає лічильник невдач
+
+      if (method === "GET" && path === "/api/admin/products") {
+        const data = await load();
+        return json({ items: data.items, counts: counts(data.items), nextId: nextId(data), tags: pubTags(await loadTags()), apiVersion: 7 });
+      }
+
+      if (method === "GET" && path === "/api/admin/orders") {
+        const items = await loadOrders(100);
+        const c = { new: 0, work: 0, done: 0, cancel: 0 };
+        for (const o of items) if (o.status in c) c[o.status]++;
+        return json({ items, counts: c });
+      }
+
+      const om = path.match(/^\/api\/admin\/order\/([\w-]+)$/);
+      if (om && method === "PATCH") {
+        if (!ORDER_KEY_RE.test(om[1])) return json({ error: "Некоректний номер замовлення" }, 400);
+        const body = await readBody(req);
+        if (!body || !ORDER_STATUSES.includes(body.status)) return json({ error: "Некоректний статус" }, 400);
+        const rec = await ordersDb().get(om[1], { type: "json" });
+        if (!rec) return json({ error: "Замовлення не знайдено" }, 404);
+        rec.status = body.status;
+        rec.updatedAt = new Date(now()).toISOString();
+        await ordersDb().setJSON(om[1], rec);
+        return json({ item: rec });
+      }
+
+      if (method === "GET" && path === "/api/admin/site") {
+        return json({ site: await loadSite(), defaults: DEFAULT_SITE, origin: url.origin });
+      }
+
+      if (method === "PUT" && path === "/api/admin/site") {
+        const body = await readBody(req);
+        if (!body) return json({ error: "Некоректні дані" }, 400);
+        const parsed = sanitizeSite(body);
+        if (parsed.error) return json({ error: parsed.error }, 400);
+        await db().setJSON("site", parsed.value);
+        return json({ site: parsed.value });
+      }
+
+      if (method === "GET" && path === "/api/admin/sync") return json(await syncEngine.status());
+
+      if (method === "PUT" && path === "/api/admin/sync") {
+        const body = await readBody(req);
+        if (!body) return json({ error: "Некоректні дані" }, 400);
+        const config = sanitizeSyncConfig(body);
+        await syncEngine.saveConfig(config);
+        return json({ config });
+      }
+
+      if (method === "POST" && path === "/api/admin/sync/run") {
+        if (url.searchParams.get("slice") !== "1") {
+          try {
+            const r = await selfFetch(url.origin + "/.netlify/functions/sync-background", { method: "POST", headers: { "x-sync-key": keyForSync(), "x-sync-force": "1" } });
+            if (r.ok || r.status === 202) return json({ mode: "background" }, 202);
+          } catch { /* фонова функція недоступна: працюємо частинами */ }
+        }
+        const r = await syncEngine.run({ budgetMs: 20000, force: true });
+        return json({ mode: "slice", ...r });
+      }
+
+      if (method === "PUT" && path === "/api/admin/tags") {
+        const body = await readBody(req);
+        if (!body || !Array.isArray(body.tags)) return json({ error: "Некоректні дані" }, 400);
+        const tags = sanitizeTags(body.tags);
+        await db().setJSON("config", { tags });
+        invalidate();
+        return json({ tags: pubTags(tags) });
+      }
+
+      if (method === "POST" && path === "/api/admin/import") {
+        const body = await readBody(req);
+        if (!body) return json({ error: "Некоректні дані" }, 400);
+        let html = typeof body.html === "string" ? body.html : "";
+        let pageUrl = typeof body.url === "string" ? body.url.trim() : "";
+        if (!html) {
+          const r = await fetchShafaPage(pageUrl);
+          if (r.error) return json(r.error, r.status);
+          html = r.html;
+          pageUrl = r.url;
+        } else if (html.length > 3_000_000) {
+          return json({ error: "Код сторінки завеликий" }, 413);
+        }
+        const draft = parseShafaHtml(html, await loadTags(), pageUrl);
+        if (!draft.name) return json({ error: "Не вдалося розпізнати сторінку. Це точно товар на Shafa?", code: "unparsed" }, 422);
+        return json({ draft });
+      }
+
+      if (method === "GET" && path === "/api/admin/import-img") {
+        const id = url.searchParams.get("id") || "";
+        if (!/^\d{6,14}$/.test(id)) return json({ error: "Некоректний номер фото" }, 400);
+        let r;
+        try {
+          r = await fetchImpl(`https://images.shafastatic.net/${id}`, { headers: { "user-agent": UA, accept: "image/jpeg,image/png,image/webp,image/*;q=0.8" }, signal: AbortSignal.timeout(20000) });
+        } catch {
+          return json({ error: "Фото не завантажилось із Shafa" }, 504);
+        }
+        if (!r.ok) return json({ error: `Фото недоступне на Shafa (код ${r.status})` }, 502);
+        const buf = await r.arrayBuffer();
+        if (buf.byteLength > 12 * 1024 * 1024) return json({ error: "Фото завелике" }, 413);
+        return new Response(buf, { headers: { "content-type": r.headers.get("content-type") || "image/jpeg", "cache-control": "no-store" } });
+      }
+
+      const putImg = path.match(/^\/api\/admin\/img\/([a-f0-9]{16}s?)$/);
+      if (method === "PUT" && putImg) {
+        const id = putImg[1];
+        const bytes = await req.arrayBuffer();
+        const head = new Uint8Array(bytes.slice(0, 3));
+        const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+        if (!isJpeg) return json({ error: "Це не JPEG-фото" }, 400);
+        const limit = id.endsWith("s") ? MAX_SMALL_BYTES : MAX_FULL_BYTES;
+        if (bytes.byteLength > limit) return json({ error: "Фото завелике" }, 413);
+        await img().set(id, bytes, { metadata: { type: "image/jpeg" } });
+        return json({ ok: true, id });
+      }
+
+      if (method === "POST" && path === "/api/admin/product") {
+        const body = await readBody(req);
+        if (!body) return json({ error: "Некоректні дані" }, 400);
+        const tagKeys = (await loadTags()).map((t) => t.key);
+        const parsed = normalize(body, tagKeys);
+        if (parsed.error) return json({ error: parsed.error }, 400);
+        const missing = await firstMissingImage(parsed.value.images);
+        if (missing >= 0) return json({ error: `Фото №${missing + 1} не завантажилось. Додай його ще раз` }, 400);
+
+        const data = await load();
+        if (parsed.value.src) {
+          const twin = data.items.find((p) => p.src === parsed.value.src);
+          if (twin) return json({ error: `Цей товар уже імпортовано (${twin.id})`, code: "dup", id: twin.id }, 409);
+        }
+        const id = nextId(data);
+        const now = new Date().toISOString();
+        const item = { ...parsed.value, id, createdAt: now, updatedAt: now };
+        if (item.status === "sold") item.soldAt = now;
+        data.items.unshift(item);
+        data.next = artNumber(id) + 1;
+        await save(data);
+        return json({ item }, 201);
+      }
+
+      const one = path.match(/^\/api\/admin\/product\/([^/]+)$/);
+      if (one && ART_ID.test(one[1])) {
+        const id = one[1];
+        const data = await load();
+        const idx = data.items.findIndex((p) => p.id === id);
+        if (idx < 0) return json({ error: "Лот не знайдено" }, 404);
+        const existing = data.items[idx];
+
+        if (method === "PATCH") {
+          const body = await readBody(req);
+          if (!body) return json({ error: "Некоректні дані" }, 400);
+          const patch = {};
+          for (const key of EDITABLE) if (key in body) patch[key] = body[key];
+          const parsed = normalize({ ...existing, ...patch }, (await loadTags()).map((t) => t.key));
+          if (parsed.error) return json({ error: parsed.error }, 400);
+
+          const added = parsed.value.images.filter((x) => !existing.images.includes(x));
+          const missing = await firstMissingImage(added);
+          if (missing >= 0) return json({ error: "Нове фото не завантажилось. Додай його ще раз" }, 400);
+
+          const now = new Date().toISOString();
+          const item = { ...existing, ...parsed.value, updatedAt: now };
+          for (const k of ["ageFrom", "ageTo", "length", "lengthKind", "srcPhotos"]) if (!(k in parsed.value)) delete item[k];   // порожнє поле = прибрати
+          if (item.status === "sold") item.soldAt = existing.status === "sold" ? existing.soldAt || now : now;
+          else delete item.soldAt;
+          data.items[idx] = item;
+          await save(data);
+          await removeImages(existing.images.filter((x) => !item.images.includes(x)));
+          return json({ item });
+        }
+
+        if (method === "DELETE") {
+          data.items.splice(idx, 1);
+          await save(data);
+          if (existing.src) await ignoreSrc(existing.src);       // видалений лот автоперевірка більше не пропонує
+          await removeImages(existing.images);
+          return json({ ok: true });
+        }
+      }
+
+      return json({ error: "Невідома адреса" }, 404);
+    }
+
+    return json({ error: "Невідома адреса" }, 404);
+  }
+
+  return async function handler(req) {
+    try {
+      return await route(req);
+    } catch (err) {
+      console.error("api error:", err);
+      return json({ error: "Помилка сервера. Спробуй ще раз за хвилину" }, 500);
+    }
+  };
+}
+
+export default createHandler();
+
+export const config = { path: ["/api/*", "/img/*"] };
