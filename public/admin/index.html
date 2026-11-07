@@ -1072,7 +1072,8 @@ function startImportHtml() {
   const html = $('impHtml').value;
   if (html.trim().length < 500) { toast('Встав весь код сторінки (Ctrl+A, Ctrl+C)', true); return; }
   runImport([{ url: '', html }]);
-}/* ---------- Хештеги й колекції ---------- */
+}
+  /* ---------- Хештеги й колекції ---------- */
 function renderTagEditor() {
   const list = $('tagList');
   if (!list) return;
