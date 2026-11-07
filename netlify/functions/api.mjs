@@ -39,13 +39,13 @@ export const DEFAULT_TAGS = [
 ];
 const CONDITIONS = ["Новий", "Ідеальний", "Дуже хороший", "Хороший", "Задовільний"];
 const STATUSES = ["available", "reserved", "sold", "hidden"];
-const EDITABLE = ["name", "audience", "tags", "size", "condition", "price", "oldPrice", "desc", "status", "images", "ageFrom", "ageTo", "length", "lengthKind"];
+const EDITABLE = ["name", "audience", "tags", "size", "condition", "price", "oldPrice", "desc", "status", "images", "ageFrom", "ageTo", "length", "lengthKind", "srcPhotos"];
 const MAX_IMAGES = 10;
 const MAX_FULL_BYTES = 2.5 * 1024 * 1024;
 const MAX_SMALL_BYTES = 400 * 1024;
 const SRC_RE = /^shafa:\d{5,12}$/;
 const FULL_ID = /^[a-f0-9]{16}$/;
-const LENGTH_KINDS = ["tag", "height", "length"];   // від бірки до низу, висота, довжина
+const LENGTH_KINDS = ["tag", "shoulder", "height", "length"];   // від бірки до низу, від плеча, висота, довжина
 // «62 см», «62–65 см» → єдиний вигляд; усе інше відкидаємо
 function normLength(v) {
   const m = String(v ?? "").replace(",", ".").match(/(\d{2,3})(?:\.\d)?\s*(?:[–—-]\s*(\d{2,3})(?:\.\d)?)?/);
@@ -122,6 +122,8 @@ export function normalize(raw, tagKeys = DEFAULT_TAGS.map((t) => t.key)) {
   if (length) { value.length = length; value.lengthKind = lengthKind; }
   if (typeof raw.src === "string" && SRC_RE.test(raw.src)) value.src = raw.src;
   if (typeof raw.srcUrl === "string" && /^https:\/\/(www\.)?shafa\.ua\/\S{3,280}$/.test(raw.srcUrl)) value.srcUrl = raw.srcUrl;
+  const srcPhotos = [...new Set(arr(raw.srcPhotos).map(String).filter((x) => /^\d{6,14}$/.test(x)))].slice(0, MAX_IMAGES);
+  if (srcPhotos.length) value.srcPhotos = srcPhotos;      // фото на Shafa, ще не збережені на сайті (чернетка, знайдена автоматично)
   const sp = Math.round(Number(raw.srcPrice));
   if (Number.isFinite(sp) && sp > 0 && sp <= 1000000) value.srcPrice = sp;
   return { value };
@@ -231,27 +233,34 @@ function formatSize(list) {
   const letters = items.filter((x) => /^(xxs|xs|s|m|l|xl|xxl|xxxl)$/i.test(x));
   return letters.join(", ").toUpperCase();
 }
-// «на 3–4 роки», «для 5-6 років», «вік 7–8 років», «на 2 роки»
+// Вік у реальних оголошеннях: «на 6-7 рочків», «3-4р.», «на 1.5-2 роки», «9-12 місяців», «для дівчинки 7р»
 export function extractAge(text) {
-  const unit = "(?:років|роки|року|рік|рр?\\.|лет|года|год)(?![а-яіїєґa-z])";
   const t = String(text || "").toLowerCase().replace(/\u00a0/g, " ");
-  let m = t.match(new RegExp("(?<![\\d.,])(\\d{1,2})\\s*(?:[–—-]|до|по)\\s*(\\d{1,2})\\s*" + unit));
-  if (m) { const a = Number(m[1]), b = Number(m[2]); if (a >= 0 && a < b && b <= 18) return { ageFrom: a, ageTo: b }; }
-  m = t.match(new RegExp("(?:на|для|вік(?:ом)?|від)\\s*(\\d{1,2})\\s*" + unit));
-  if (m) { const a = Number(m[1]); if (a >= 1 && a <= 18) return { ageFrom: a, ageTo: a }; }
+  const N = "(\\d{1,2}(?:[.,]5)?)", L = "(?![а-яіїєґa-z])", BEFORE = "(?<![\\d.,])", SEP = "\\s*(?:[–—-]|до|по)\\s*";
+  const YR = "(?:рочків|рочки|рочок|років|роки|року|рік|рр\\.?|р\\.|р)" + L, YRW = "(?:рочків|рочки|рочок|років|роки|року|рік)" + L, MO = "(?:місяців|місяці|місяць|міс\\.?)" + L;
+  const n = (x) => parseFloat(String(x).replace(",", "."));
+  let m = t.match(new RegExp(BEFORE + N + SEP + N + "\\s*" + MO));
+  if (m) { const a = n(m[1]), b = n(m[2]); return a < b && b <= 36 ? { ageFrom: Math.floor(a / 12), ageTo: Math.max(1, Math.ceil(b / 12)) } : null; }
+  m = t.match(new RegExp(BEFORE + N + SEP + N + "\\s*" + YR));
+  if (m) { const a = n(m[1]), b = n(m[2]); return a >= 0 && a < b && b <= 18 ? { ageFrom: Math.floor(a), ageTo: Math.ceil(b) } : null; }   // «10–3 роки» чи «20–30 років» не вік
+  m = t.match(new RegExp("(?:на|для|вік(?:ом)?|від)\\s+(?:[а-яіїєґ'’]+\\s+){0,2}" + N + "\\s*" + YR));
+  if (m) { const a = n(m[1]); if (a >= 1 && a <= 18) return { ageFrom: Math.floor(a), ageTo: Math.ceil(a) }; }
+  m = t.match(new RegExp(BEFORE + N + "\\s*" + YRW));
+  if (m) { const a = n(m[1]); if (a >= 1 && a <= 18) return { ageFrom: Math.floor(a), ageTo: Math.ceil(a) }; }
   return null;
 }
-// «Довжина від бірки до низу 62 см», «Висота 85 см», «62 см (від бірки до низу)»
+// «Довжина від бірки до низу 62 см», «довжина від плеча — 73 см», «Висота 85 см», «62 см (від бірки до низу)»
 export function extractLength(text) {
   const t = String(text || "").replace(/\u00a0/g, " ");
   const num = "(\\d{2,3}(?:[.,]\\d)?)(?:\\s*[–—-]\\s*(\\d{2,3}(?:[.,]\\d)?))?";
-  const sep = "[\\s:=\\-–—~≈]*(?:приблизно|близько|біля)?\\s*";
+  const sep = "[\\s:=\\-–—~≈•]*(?:приблизно|близько|біля)?\\s*";
   const tagRe = "від\\s+б[іи]рк[иі]\\s+до\\s+низу";
   const tries = [
     ["tag", new RegExp(tagRe + sep + num, "i")],
     ["tag", new RegExp(num + "\\s*(?:см|cm)?\\s*[(,\\-–—]?\\s*" + tagRe, "i")],
+    ["shoulder", new RegExp("(?:довжина\\s+)?від\\s+плеч[аі]" + sep + num, "i")],
     ["height", new RegExp("висота(?:\\s+(?:виробу|костюма|сукні|плаття|комбінезона))?" + sep + num, "i")],
-    ["length", new RegExp("довжина(?:\\s+(?:виробу|костюма|сукні|плаття))?" + sep + num, "i")],
+    ["length", new RegExp("довжина(?:\\s+(?:виробу|костюма|сукні|плаття|спідниці))?" + sep + num, "i")],
   ];
   for (const [kind, re] of tries) {
     const m = t.match(re);
@@ -409,15 +418,22 @@ export function detectSold(html) {
   return lines.slice(Math.max(0, at - 4), at + 30).some((l) => /^(товар продано|продано|оголошення неактуальне|товар недоступний|немає в наявності|знято з продажу|товар більше не продається)$/i.test(l));
 }
 
+// Лише карнавальні костюми: у «Категоріях» товару має бути «Карнавальні» (в профілі є й інший одяг)
+export function isCarnival(html) {
+  const lines = toLines(html);
+  const i = lines.findIndex((l) => /^Категорії:?/i.test(l));
+  if (i < 0) return false;
+  const block = [lines[i].replace(/^Категорії:?/i, "")];
+  for (const l of lines.slice(i + 1, i + 8)) { if (/^(Тематика|Тип|Бренд|Продавець|Колір|Розмір|Стан)/i.test(l)) break; block.push(l); }
+  return /карнавальн/i.test(block.join(" "));
+}
+
 function classifyItem(html, finalUrl, sid) {
   const d = parseShafaHtml(html, [], finalUrl);
   if (!d.name) return { kind: "unparsed" };
   if (d.src && d.src !== `shafa:${sid}`) return { kind: "gone" };          // адреса веде на інший товар
   return { kind: detectSold(html) ? "sold" : "ok", price: d.price };
 }
-
-const kyiv = (ms) => new Date(ms).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-
 export function createSync({
   getStore: makeStore = getStore, env = defaultEnv,
   shafaFetch = (...a) => globalThis.fetch(...a), tgFetch = (...a) => globalThis.fetch(...a),
@@ -496,7 +512,44 @@ export function createSync({
       if (c.idx % 5 === 0) await saveState(st);
       await sleep(500);
     }
-    if (c.idx >= c.queue.length) c.phase = "finish";
+    if (c.idx >= c.queue.length) c.phase = cfg.findNew ? "import" : "finish";
+  }
+
+  // Нові костюми з профілю Shafa потрапляють у чернетки самі; фото підтягнеться, коли власниця додасть чернетку на сайт
+  async function phaseImport(c, cfg, st, deadline) {
+    if (!c.iq) {
+      const data = await loadProducts();
+      const known = new Set(data.items.map((p) => (p.src || "").slice(6)).filter(Boolean));
+      const ignored = new Set((await getJSON("ignored")) || []);
+      c.iq = Object.entries(c.found).filter(([id]) => !known.has(id) && !ignored.has(id)).map(([, u]) => u).slice(0, 40);
+      c.ii = 0; c.imported = []; c.skipped = 0; c.ierr = 0;
+    }
+    if (c.ii < c.iq.length && now() < deadline) {
+      const cfgTags = await getJSON("config");
+      const tags = cfgTags && Array.isArray(cfgTags.tags) ? sanitizeTags(cfgTags.tags) : DEFAULT_TAGS;
+      while (c.ii < c.iq.length && now() < deadline) {
+        const r = await getHtml(c.iq[c.ii++]);
+        await sleep(500);
+        if (r.status !== 200) { c.ierr++; continue; }
+        const d = parseShafaHtml(r.html, tags, r.url);
+        if (!d.name || !d.src || !isCarnival(r.html) || detectSold(r.html)) { c.skipped++; continue; }
+        const data = await loadProducts();                                 // свіжий каталог: не затираємо правки власниці
+        if (data.items.some((p) => p.src === d.src)) continue;
+        const parsed = normalize({
+          name: d.name, audience: d.audience, tags: d.tags, size: d.size, condition: d.condition, price: d.price || 0, desc: d.desc, status: "hidden", images: [],
+          src: d.src, srcUrl: d.url, srcPrice: d.price || undefined, srcPhotos: d.photos,
+          ageFrom: d.ageFrom ?? undefined, ageTo: d.ageTo ?? undefined, length: d.length || undefined, lengthKind: d.lengthKind || undefined,
+        }, tags.map((t) => t.key));
+        if (parsed.error) { c.skipped++; continue; }
+        const id = formatId(Math.max(Number(data.next) || 1, data.items.reduce((m, p) => Math.max(m, artNumber(p.id)), 0) + 1));
+        const stamp = new Date(now()).toISOString();
+        data.items.unshift({ ...parsed.value, id, createdAt: stamp, updatedAt: stamp, auto: true });
+        data.next = artNumber(id) + 1;
+        await db().setJSON("products", data);
+        c.imported.push({ id, name: d.name });
+      }
+    }
+    if (c.ii >= c.iq.length) c.phase = "finish";
   }
 
   async function finish(c, cfg, st) {
@@ -529,17 +582,18 @@ export function createSync({
     }
     if (touched) await db().setJSON("products", data);
     const known = new Set(data.items.map((p) => (p.src || "").slice(6)).filter(Boolean));
-    const newLinks = cfg.findNew ? Object.entries(c.found).filter(([id]) => !known.has(id)).map(([, u]) => u).slice(0, 60) : [];
+    const newLinks = cfg.findNew && !c.iq ? Object.entries(c.found).filter(([id]) => !known.has(id)).map(([, u]) => u).slice(0, 60) : [];
     const report = {
       at: now(), startedAt: c.startedAt, ok: true, listed: Object.keys(c.found).length, checked: c.checked, errors: c.errors,
       applied, mode: cfg.apply ? "apply" : "report", notes, newLinks,
+      imported: c.imported || [], skippedNew: c.skipped || 0, importErrors: c.ierr || 0,
       changes: c.changes.map((x) => ({ ...x, name: byId.get(x.id)?.name || "" })).slice(0, 100),
     };
     report.sig = JSON.stringify([report.changes.map((x) => [x.id, x.kind, x.to ?? 0, x.applied ? 1 : 0]), newLinks.length, notes.length, applied, report.mode]);
     const same = st.last?.sig === report.sig;
     st.last = report; st.cycle = null;
     await saveState(st);
-    if ((report.changes.length || newLinks.length || notes.length) && !same) await notify(buildMessage(report));
+    if (((report.changes.length || newLinks.length || notes.length) && !same) || report.imported.length) await notify(buildMessage(report));
     return report;
   }
 
@@ -549,6 +603,7 @@ export function createSync({
     if (price.length) L.push(`💰 Змінилась ціна: ${price.length}` + price.slice(0, 5).map((x) => `\n  ${x.name || x.id}: ${x.from} → ${x.to} грн${x.applied ? " (оновлено)" : x.skipped ? ` (${x.skipped})` : ""}`).join(""));
     if (sold.length) L.push(`🚫 Продано або знято на Shafa: ${sold.length}` + sold.slice(0, 5).map((x) => `\n  ${x.name || x.id}${x.applied ? " (знято з сайту)" : ""}`).join(""));
     if (r.newLinks.length) L.push(`🆕 Нових товарів на Shafa: ${r.newLinks.length}. Адмінка → Додати → Імпорт`);
+    if (r.imported?.length) L.push(`📝 Нових костюмів у чернетках: ${r.imported.length}` + r.imported.slice(0, 5).map((x) => `\n  ${x.name}`).join("") + "\nАдмінка → Каталог → Чернетки: познач, які додати на сайт");
     for (const n of r.notes) L.push("⚠️ " + n);
     L.push(r.mode === "apply" ? "Зміни застосовано автоматично." : "Режим «лише повідомляти»: на сайті нічого не змінено.");
     return L.join("\n");
@@ -581,6 +636,7 @@ export function createSync({
     try {
       if (c.phase === "list") await phaseList(c, cfg, st, deadline);
       if (c.phase === "check") await phaseCheck(c, cfg, st, deadline);
+      if (c.phase === "import") await phaseImport(c, cfg, st, deadline);
       if (c.phase === "finish") { await finish(c, cfg, st); return { done: true, report: st.last }; }
       c.lockUntil = 0;
       await saveState(st);
@@ -681,6 +737,12 @@ export function createHandler({
   function nextId(data) {
     const maxUsed = data.items.reduce((m, p) => Math.max(m, artNumber(p.id)), 0);
     return formatId(Math.max(Number(data.next) || 1, maxUsed + 1));
+  }
+
+  async function ignoreSrc(src) {
+    const sid = String(src).slice(6);
+    const cur = (await db().get("ignored", { type: "json" })) || [];
+    if (!cur.includes(sid)) { cur.push(sid); await db().setJSON("ignored", cur.slice(-3000)); }
   }
 
   async function firstMissingImage(ids) {
@@ -946,7 +1008,7 @@ export function createHandler({
 
           const now = new Date().toISOString();
           const item = { ...existing, ...parsed.value, updatedAt: now };
-          for (const k of ["ageFrom", "ageTo", "length", "lengthKind"]) if (!(k in parsed.value)) delete item[k];   // порожнє поле = прибрати
+          for (const k of ["ageFrom", "ageTo", "length", "lengthKind", "srcPhotos"]) if (!(k in parsed.value)) delete item[k];   // порожнє поле = прибрати
           if (item.status === "sold") item.soldAt = existing.status === "sold" ? existing.soldAt || now : now;
           else delete item.soldAt;
           data.items[idx] = item;
@@ -958,6 +1020,7 @@ export function createHandler({
         if (method === "DELETE") {
           data.items.splice(idx, 1);
           await save(data);
+          if (existing.src) await ignoreSrc(existing.src);       // видалений лот автоперевірка більше не пропонує
           await removeImages(existing.images);
           return json({ ok: true });
         }
@@ -982,3 +1045,4 @@ export function createHandler({
 export default createHandler();
 
 export const config = { path: ["/api/*", "/img/*"] };
+const kyiv = (ms) => new Date(ms).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
