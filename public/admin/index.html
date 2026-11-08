@@ -231,7 +231,7 @@ li.has-sel{display:flex;align-items:center;gap:6px}li.has-sel .row{flex:1;min-wi
       </div>
       <details class="card imp" id="impBox">
         <summary>Імпорт із Shafa</summary>
-        <p class="hint" style="margin-top:0">Встав посилання на свої товари на Shafa, по одному в рядок. Ми створимо чернетки з фото, розміром, станом і хештегами. Перевір їх у розділі «Каталог» і опублікуй.</p>
+        <p class="hint" style="margin-top:0">Встав посилання на свої товари на Shafa (до 40, по одному в рядок) <b>або код сторінки свого профілю</b>: відкрий профіль на комп'ютері, натисни Ctrl+U, потім Ctrl+A і Ctrl+C, і встав сюди. Посилання на костюми знайдуться самі. Ми створимо чернетки з фото, розміром, станом і хештегами. Перевір їх у «Каталозі» й опублікуй.</p>
         <label class="field" style="margin-top:12px">
           <span class="label">Посилання</span>
           <textarea id="impUrls" rows="4" placeholder="https://shafa.ua/uk/item/222163643-…"></textarea>
@@ -1006,9 +1006,10 @@ function impLog(html, cls) {
   $('impLog').appendChild(li);
   return li;
 }
-async function importOne(url, html) {
+async function importOne(url, html, bulk) {
   const r = await api('POST', '/api/admin/import', html ? { html, url } : { url });
   const d = r.draft;
+  if (bulk && d.carnival === false) { const e = new Error('не карнавальний костюм, пропущено'); e.code = 'skip'; throw e; }
   const ids = [];
   let lost = 0;
   for (const shafaPhoto of d.photos) {
@@ -1027,32 +1028,34 @@ async function importOne(url, html) {
   });
   return { item: res.item, draft: d };
 }
-function finishImport(ok, dup, fail) {
+function finishImport(ok, dup, fail, skip) {
   S.importing = false;
   $('impGo').disabled = false;
   $('impHtmlGo').disabled = false;
-  impLog(`<b>Готово:</b> імпортовано ${ok}, уже були ${dup}, помилок ${fail}.`, ok ? 'ok' : '');
+  impLog(`<b>Готово:</b> імпортовано ${ok}, уже були ${dup}, помилок ${fail}${skip ? `, пропущено не костюмів ${skip}` : ''}.`, ok ? 'ok' : '');
   $('impDone').hidden = ok === 0;
   refreshList(true);
 }
-async function runImport(jobs) {      // jobs: [{ url, html }]
+async function runImport(jobs, bulk, note) {      // jobs: [{ url, html }]
   if (S.importing || !jobs.length) return;
   S.importing = true;
   $('impGo').disabled = true; $('impHtmlGo').disabled = true;
   $('impLog').innerHTML = ''; $('impDone').hidden = true;
-  let ok = 0, dup = 0, fail = 0;
+  if (note) impLog(esc(note), 'wait');
+  let ok = 0, dup = 0, fail = 0, skip = 0;
   for (let i = 0; i < jobs.length; i++) {
     const { url, html } = jobs[i];
     const label = html ? 'код сторінки' : url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60);
     const li = impLog(`${i + 1} з ${jobs.length}: ${esc(label)} …`, 'wait');
     try {
-      const { item, draft } = await importOne(url, html);
+      const { item, draft } = await importOne(url, html, bulk);
       ok++;
       li.className = 'ok';
       li.innerHTML = `✓ ${esc(item.id)}: ${esc(item.name)} <small>(${item.images.length} фото${draft.warnings.length ? '; ' + esc(draft.warnings.join('; ')) : ''})</small>`;
     } catch (e) {
       if (e.code === 'bad_password') { S.importing = false; logout(); return; }
       if (e.code === 'dup') { dup++; li.className = 'dup'; li.textContent = '• ' + e.message; }
+      else if (e.code === 'skip') { skip++; li.className = 'dup'; li.textContent = '• ' + label + ': ' + e.message; }
       else {
         fail++; li.className = 'bad'; li.textContent = '✕ ' + e.message;
         if (e.code === 'blocked') { $('impFallback').open = true; break; }   // далі пробувати немає сенсу
@@ -1060,7 +1063,28 @@ async function runImport(jobs) {      // jobs: [{ url, html }]
     }
     if (i < jobs.length - 1) await sleep(700);   // не навантажуємо Shafa
   }
-  finishImport(ok, dup, fail);
+  finishImport(ok, dup, fail, skip);
+}
+// Посилання на товари з вставленого коду сторінки профілю (у порядку на сторінці: найновіші першими)
+function linksFromPage(text) {
+  const out = new Map();
+  const flat = String(text).replace(/\\u002F|\\\//gi, '/');
+  const re = /(?:https?:\/\/(?:www\.)?shafa\.ua)?\/uk\/(?:[a-z0-9-]+\/)*(\d{6,12})-[a-z0-9-]+/gi;
+  let m;
+  while ((m = re.exec(flat))) {
+    if (/\/member\//i.test(m[0]) || out.has(m[1])) continue;
+    out.set(m[1], 'https://shafa.ua' + m[0].replace(/^https?:\/\/(?:www\.)?shafa\.ua/i, ''));
+  }
+  return [...out.values()];
+}
+function startImport() {
+  const raw = $('impUrls').value;
+  const isPage = raw.length > 3000 || /<a[\s>]|<html|<!doctype/i.test(raw);          // вставили код сторінки, а не список посилань
+  let urls = isPage ? linksFromPage(raw) : [...new Set(raw.split(/\s+/).map((x) => x.trim()).filter(Boolean))];
+  if (!urls.length) { toast(isPage ? 'У цьому коді немає посилань на товари. Це точно сторінка твого профілю?' : 'Встав хоча б одне посилання', true, 5000); return; }
+  let note = isPage ? `У коді сторінки знайдено посилань на товари: ${urls.length}.` : '';
+  if (urls.length > 40) { note = `Знайдено посилань: ${urls.length}. Беру перші 40, решту додай окремим заходом.`; urls = urls.slice(0, 40); }
+  runImport(urls.map((url) => ({ url })), isPage, note);
 }
 function startImport() {
   const urls = [...new Set($('impUrls').value.split(/\s+/).map((x) => x.trim()).filter(Boolean))];
