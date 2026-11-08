@@ -366,6 +366,9 @@ export function parseShafaHtml(html, tags = DEFAULT_TAGS, pageUrl = "") {
 }
 
 const UA = "Mozilla/5.0 (compatible; AliceLandImport/1.0)";
+// Сторінки Shafa просимо як звичайний браузер: на «ботів» її захист може віддавати порожню сторінку
+const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const shafaHeaders = () => ({ "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language": "uk-UA,uk;q=0.9,en;q=0.5", "upgrade-insecure-requests": "1" });
 
 /* ---------- Автоперевірка Shafa (двічі на добу) ---------- */
 // Що робить: відкриває профіль на Shafa, збирає посилання на товари, перевіряє на Shafa кожен
@@ -393,16 +396,29 @@ export function sanitizeSyncConfig(raw) {
 // Усі посилання на товари зі сторінки списку: /uk/item/222163643-назва або /uk/kids/…/62850767-назва
 export function extractItemLinks(html, base = "https://shafa.ua") {
   const out = new Map();
-  for (const m of html.matchAll(/<a\b[^>]*>/gi)) {
-    const href = attrsOf(m[0]).href;
-    if (!href) continue;
+  const take = (href) => {
     let u;
-    try { u = new URL(href, base); } catch { continue; }
-    if (!/^(www\.)?shafa\.ua$/i.test(u.hostname) || /\/(member|blog|shop|brand)\//.test(u.pathname)) continue;
+    try { u = new URL(href, base); } catch { return; }
+    if (!/^(www\.)?shafa\.ua$/i.test(u.hostname) || /\/(member|blog|shop|brand)\//.test(u.pathname)) return;
     const id = (u.pathname.match(/\/(\d{6,12})-[^/]+\/?$/) || [])[1];
     if (id && !out.has(id)) out.set(id, u.origin + u.pathname);
-  }
+  };
+  for (const m of html.matchAll(/<a\b[^>]*>/gi)) { const href = attrsOf(m[0]).href; if (href) take(href); }
+  if (out.size) return out;
+  // Запасний шлях: товари можуть лежати не в <a>, а в JSON усередині сторінки («/uk/item/123456-назва», іноді з екрануванням \/)
+  const flat = html.replace(/\\u002F|\\\//gi, "/");
+  for (const m of flat.matchAll(/(?:https?:\/\/(?:www\.)?shafa\.ua)?\/uk\/(?:[a-z0-9-]+\/)*\d{6,12}-[a-z0-9-]+/gi)) take(m[0]);
   return out;
+}
+
+// Коротко описує, що саме віддала Shafa (для повідомлення про помилку)
+function describePage(r) {
+  const html = String(r.html || "");
+  const title = ((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim().slice(0, 80) || "без заголовка";
+  const text = toLines(html).join(" ").slice(0, 160);
+  const hints = [/captcha/i.test(html) && "капча", /cloudflare|just a moment|attention required/i.test(html) && "захист Cloudflare", /access denied|forbidden/i.test(html) && "доступ закрито", /__NEXT_DATA__|__APOLLO_STATE__|window\.__/.test(html) && "дані всередині скриптів"].filter(Boolean);
+  const items = (html.match(/\/item\/\d{6,12}-/g) || []).length;
+  return `Відповідь Shafa: ${html.length} байт, заголовок «${title}», згадок «/item/»: ${items}${hints.length ? ", ознаки: " + hints.join(", ") : ""}${r.viaReader ? " (через читач)" : ""}. Початок тексту: «${text}»`;
 }
 
 // Чи позначено товар проданим або недоступним (шукаємо лише біля заголовка, щоб не плутати зі статистикою продавця)
@@ -435,8 +451,7 @@ function classifyItem(html, finalUrl, sid) {
   return { kind: detectSold(html) ? "sold" : "ok", price: d.price };
 }
 
-const kyiv = (ms) => new Date(ms).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-export function createSync({
+const kyiv = (ms) => new Date(ms).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });export function createSync({
   getStore: makeStore = getStore, env = defaultEnv,
   shafaFetch = (...a) => globalThis.fetch(...a), tgFetch = (...a) => globalThis.fetch(...a),
   now = () => Date.now(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
@@ -448,12 +463,29 @@ export function createSync({
   const saveState = (st) => db().setJSON("syncstate", st);
   const loadProducts = async () => { const d = await getJSON("products"); return d && Array.isArray(d.items) ? d : { items: [], next: 1 }; };
 
-  async function getHtml(url) {
+  async function fetchOnce(url) {
     try {
-      const res = await shafaFetch(url, { headers: { "user-agent": UA, "accept-language": "uk,en;q=0.5", accept: "text/html" }, signal: AbortSignal.timeout(15000) });
+      const res = await shafaFetch(url, { headers: shafaHeaders(), signal: AbortSignal.timeout(15000) });
       if (!res.ok) return { status: res.status };
       return { status: 200, html: await res.text(), url: res.url || url };
     } catch { return { status: 0 }; }
+  }
+  // Якщо Shafa не віддає сторінку серверу напряму, пробуємо через безкоштовний «читач» сторінок: він відкриває її як браузер
+  async function fetchViaReader(url) {
+    try {
+      const res = await shafaFetch("https://r.jina.ai/" + url, { headers: { accept: "text/html", "x-return-format": "html" }, signal: AbortSignal.timeout(30000) });
+      if (!res.ok) return { status: res.status };
+      return { status: 200, html: await res.text(), url, viaReader: true };
+    } catch { return { status: 0 }; }
+  }
+  const looksLikeItem = (html) => /<h1\b/i.test(html) || /og:title/i.test(html);
+  async function getHtml(url, needItems = false, readerIfEmpty = true) {
+    const ok = (r) => r.status === 200 && (needItems ? extractItemLinks(r.html).size > 0 : looksLikeItem(r.html));
+    const r = await fetchOnce(url);
+    if (ok(r) || r.status === 404 || r.status === 410) return r;
+    if (r.status === 200 && !readerIfEmpty) return r;         // порожня сторінка після останньої: це кінець списку, а не збій
+    const alt = await fetchViaReader(url);
+    return ok(alt) ? alt : r;                     // не вийшло й так: повертаємо відповідь напряму (для діагностики)
   }
 
   async function notify(text) {
@@ -468,14 +500,14 @@ export function createSync({
   async function phaseList(c, cfg, st, deadline) {
     while (c.page <= 40 && now() < deadline && !c.listDone) {
       const url = c.page === 1 ? cfg.profileUrl : `${cfg.profileUrl}?page=${c.page}`;
-      const r = await getHtml(url);
+      const r = await getHtml(url, true, c.page === 1);
       if (r.status !== 200) {
         if (c.page === 1) throw userErr(`Не вдалося відкрити профіль на Shafa (${r.status ? "код " + r.status : "немає відповіді"})`);
         c.listDone = true; break;
       }
       let added = 0;
       for (const [id, u] of extractItemLinks(r.html)) if (!(id in c.found)) { c.found[id] = u; added++; }
-      if (c.page === 1 && !added) throw userErr("На сторінці профілю не знайдено товарів. Можливо, Shafa змінила верстку або віддала порожню сторінку");
+      if (c.page === 1 && !added) throw userErr("На сторінці профілю не знайдено товарів. Можливо, Shafa змінила верстку або віддала порожню сторінку. " + describePage(r));
       if (!added) c.listDone = true; else c.page++;
       await saveState(st);
       await sleep(600);
@@ -722,7 +754,7 @@ export function createHandler({
     if (!/\d{5,12}-[^/]*\/?$/.test(u.pathname)) return { status: 400, error: { error: "Це не сторінка товару. Посилання має бути на кшталт shafa.ua/uk/item/…" } };
     let res;
     try {
-      res = await fetchImpl(u.href, { headers: { "user-agent": UA, "accept-language": "uk,en;q=0.5", accept: "text/html" }, signal: AbortSignal.timeout(15000) });
+      res = await fetchImpl(u.href, { headers: shafaHeaders(), signal: AbortSignal.timeout(15000) });
     } catch {
       return { status: 504, error: { error: "Shafa не відповіла. Спробуй за хвилину", code: "timeout" } };
     }
