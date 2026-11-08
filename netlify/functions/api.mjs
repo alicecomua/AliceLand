@@ -965,7 +965,7 @@ export function createHandler({
         }
         const draft = parseShafaHtml(html, await loadTags(), pageUrl);
         if (!draft.name) return json({ error: "Не вдалося розпізнати сторінку. Це точно товар на Shafa?", code: "unparsed" }, 422);
-        return json({ draft });
+             return json({ draft: { ...draft, carnival: isCarnival(html) } });
       }
 
       if (method === "GET" && path === "/api/admin/import-img") {
